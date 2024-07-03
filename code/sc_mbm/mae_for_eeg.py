@@ -32,6 +32,7 @@ class PatchEmbed1D(nn.Module):
         x = self.dropout(x)
         return x
 
+# EEG data로 MAE 즉, masked modeling 를 적용시켜 reconstruction을 수행하는 클래스
 class MAEforEEG(nn.Module):
     """ Masked Autoencoder with VisionTransformer backbone
     """
@@ -51,6 +52,8 @@ class MAEforEEG(nn.Module):
         self.num_patches = num_patches
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim), requires_grad=False)  # fixed sin-cos embedding
+
+        # proj_drop -> projection 부분도 drop을 할 수가 있다.
 
         self.blocks = nn.ModuleList([
             Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer) #yongju, proj_drop=0.15, attn_drop=0.115)
@@ -105,6 +108,9 @@ class MAEforEEG(nn.Module):
     def initialize_weights(self):
         # initialization
         # initialize (and freeze) pos_embed by sin-cos embedding
+
+        # 이 부분이 position embedding 적용 for MAE
+    
         pos_embed = get_1d_sincos_pos_embed(self.pos_embed.shape[-1], self.num_patches, cls_token=True)
         self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
 

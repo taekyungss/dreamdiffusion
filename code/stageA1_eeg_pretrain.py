@@ -1,3 +1,5 @@
+#stage 1 Masked signal modeling with large-scale noisy EEG data
+
 import os, sys
 import numpy as np
 import torch
@@ -106,7 +108,10 @@ def fmri_transform(x, sparse_rate=0.2):
 def main(config):
     print('num of gpu:')
     print(torch.cuda.device_count())
+
+    # 여기서는 local_rank가 gpu 번호를 말함.
     local_rank = config.local_rank
+
     # Initialize process group for distributed training
     torch.cuda.set_device(local_rank)
     torch.distributed.init_process_group(backend='nccl', init_method='env://')
@@ -124,12 +129,13 @@ def main(config):
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
 
-    # create dataset and dataloader
+    # create dataset and dataloader -> eegData_npy 불러옴
     dataset_pretrain = eeg_pretrain_dataset(path='/home/summer24/neural-art/data/processed/eegData_npy', roi=config.roi, patch_size=config.patch_size,
                 transform=fmri_transform, aug_times=config.aug_times, num_sub_limit=config.num_sub_limit, 
                 include_kam=config.include_kam, include_hcp=config.include_hcp)
    
     print(f'Dataset size: {len(dataset_pretrain)}\n Time len: {dataset_pretrain.data_len}')
+
     sampler = torch.utils.data.DistributedSampler(dataset_pretrain, rank=local_rank)
 
     dataloader_eeg = DataLoader(dataset_pretrain, batch_size=config.batch_size, sampler=sampler, 
@@ -142,6 +148,7 @@ def main(config):
                     num_heads=config.num_heads, decoder_num_heads=config.decoder_num_heads, mlp_ratio=config.mlp_ratio,
                     focus_range=config.focus_range, focus_rate=config.focus_rate, 
                     img_recon_weight=config.img_recon_weight, use_nature_img_loss=config.use_nature_img_loss)   
+    
     model.to(device)
     model_without_ddp = model
     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)

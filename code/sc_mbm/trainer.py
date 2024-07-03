@@ -107,7 +107,10 @@ def train_one_epoch(model, data_loader, optimizer, device, epoch,
         #     print(torch.cat([p[0].unsqueeze(0), s[0].unsqueeze(0)],axis=0))
         #     print(torch.corrcoef(torch.cat([p[0].unsqueeze(0), s[0].unsqueeze(0)],axis=0)))
         #     print(torch.corrcoef(torch.cat([p[0].unsqueeze(0), s[0].unsqueeze(0)],axis=0))[0,1])
-            
+
+
+        # definiton of cor : 상관계수 계산 -> 우리가 하고 있는게 eeg data를 masking해서 원본 신호처럼 강건하게 reconstruction 하는거니까!
+
         cor = torch.mean(torch.tensor([torch.corrcoef(torch.cat([p[0].unsqueeze(0), s[0].unsqueeze(0)],axis=0))[0,1] for p, s in zip(pred, samples)])).item()
         optimizer.zero_grad()
 
