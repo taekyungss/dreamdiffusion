@@ -25,7 +25,7 @@ class Config_MBM_EEG(Config_MAE_fMRI):
        # self.patch_size = 8 #  1
         self.embed_dim = 1024 #256 # has to be a multiple of num_heads -> 원래 dimension은 128차원 -> num_heads =8 -> 128*8 = 1024
         self.decoder_embed_dim = 512 #128
-        #self.depth = 12
+        self.depth = 12
         self.num_heads = 8
         self.decoder_num_heads = 8
         self.mlp_ratio = 1.0

@@ -5,10 +5,12 @@ __pycache__/
 *pth
 dreamdiffuion/
 processed/results/eeg_pretrain/
+wandb/
 
 
 # C extensions
 *.so
+*.wandb
 
 # Distribution / packaging
 .Python

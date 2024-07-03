@@ -13,7 +13,8 @@ import torch.nn.functional as F
 class PatchEmbed1D(nn.Module):
     """ 1 Dimensional version of data (fmri voxels) to Patch Embedding
     """
-    def __init__(self, time_len=224, patch_size=1, in_chans=14, embed_dim=256, dropout_rate=0.2):
+    # def __init__(self, time_len=224, patch_size=1, in_chans=14, embed_dim=256, dropout_rate=0.2):
+    def __init__(self, time_len=224, patch_size=1, in_chans=14, embed_dim=256, dropout_rate=0.2): # taekyung dropout_rate = 0.2 -> 0.4 / 모델 과적합되는것 같음
         super().__init__()
         num_patches = time_len // patch_size
         self.patch_shape = patch_size
