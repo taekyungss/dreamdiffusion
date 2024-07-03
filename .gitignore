@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 *pth
+*ckpt
 dreamdiffuion/
 processed/results/eeg_pretrain/
 wandb/
