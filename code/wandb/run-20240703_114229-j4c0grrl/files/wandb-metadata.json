@@ -1,0 +1,26 @@
+{
+    "os": "Linux-5.15.0-87-generic-x86_64-with-glibc2.17",
+    "python": "3.8.19",
+    "heartbeatAt": "2024-07-03T02:42:30.525379",
+    "startedAt": "2024-07-03T02:42:29.070622",
+    "docker": null,
+    "gpu": "NVIDIA TITAN RTX",
+    "gpu_count": 4,
+    "cpu_count": 20,
+    "cuda": null,
+    "args": [
+        "--local_rank=0"
+    ],
+    "state": "running",
+    "program": "stageA1_eeg_pretrain.py",
+    "codePath": "code/stageA1_eeg_pretrain.py",
+    "git": {
+        "remote": "https://github.com/bbaaii/DreamDiffusion.git",
+        "commit": "3eab2ec7010d601938a45febdb6fcdd8c3bdf100"
+    },
+    "email": null,
+    "root": "/home/summer24/neural-art/DreamDiffusion",
+    "host": "edge-deep",
+    "username": "summer24",
+    "executable": "/home/summer24/anaconda3/envs/dreamdiffusion/bin/python"
+}

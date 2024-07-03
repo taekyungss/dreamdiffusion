@@ -1,0 +1,122 @@
+wandb_version: 1
+
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.12.21
+    framework: huggingface
+    huggingface_version: 4.40.0
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.8.19
+    start_time: 1719974549
+    t:
+      1:
+      - 1
+      - 11
+      - 41
+      - 49
+      - 55
+      - 63
+      2:
+      - 1
+      - 11
+      - 41
+      - 49
+      - 55
+      - 63
+      3:
+      - 1
+      - 16
+      4: 3.8.19
+      5: 0.12.21
+      6: 4.40.0
+      8:
+      - 8
+accum_iter:
+  desc: null
+  value: 1
+aug_times:
+  desc: null
+  value: 1
+batch_size:
+  desc: null
+  value: 1
+clip_grad:
+  desc: null
+  value: 0.8
+decoder_embed_dim:
+  desc: null
+  value: 512
+decoder_num_heads:
+  desc: null
+  value: 8
+depth:
+  desc: null
+  value: 24
+embed_dim:
+  desc: null
+  value: 1024
+focus_range:
+  desc: null
+  value: null
+focus_rate:
+  desc: null
+  value: 0.6
+img_recon_weight:
+  desc: null
+  value: 0.5
+include_hcp:
+  desc: null
+  value: true
+include_kam:
+  desc: null
+  value: true
+local_rank:
+  desc: null
+  value: 0
+lr:
+  desc: null
+  value: 0.00025
+mask_ratio:
+  desc: null
+  value: 0.35
+min_lr:
+  desc: null
+  value: 0.0
+mlp_ratio:
+  desc: null
+  value: 1.0
+num_epoch:
+  desc: null
+  value: 500
+num_heads:
+  desc: null
+  value: 8
+num_sub_limit:
+  desc: null
+  value: null
+output_path:
+  desc: null
+  value: processed/results/eeg_pretrain/03-07-2024-11-42-28
+patch_size:
+  desc: null
+  value: 4
+roi:
+  desc: null
+  value: VC
+root_path:
+  desc: null
+  value: processed/
+seed:
+  desc: null
+  value: 2022
+use_nature_img_loss:
+  desc: null
+  value: false
+warmup_epochs:
+  desc: null
+  value: 40
+weight_decay:
+  desc: null
+  value: 0.05
