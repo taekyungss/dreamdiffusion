@@ -11,7 +11,9 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 import copy
 
-# own code
+from torch.nn import Identity
+import lpips
+
 from config import Config_Generative_Model
 from dataset import  create_EEG_dataset
 from dc_ldm.ldm_for_eeg import eLDM

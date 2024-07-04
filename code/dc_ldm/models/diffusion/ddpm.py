@@ -1858,3 +1858,5 @@ class EEGClassifier(pl.LightningModule):
             # c = self.cond_stage_model(c)
         # return c
         return c, re_latent
+
+# 재현 코드에서는 EEGClassifer 코드가 주석 처리되어 있음

@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from timm.models.vision_transformer import Block
-from sc_mbm.utils import get_1d_sincos_pos_embed
+from sc_mbm.utils import get_1d_sincos_pos_embed, interpolate_pos_embed
 import torch.nn.functional as F
 
 

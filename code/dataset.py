@@ -386,8 +386,8 @@ class Splitter:
         return self.dataset[self.split_idx[i]]
 
 
-def create_EEG_dataset(eeg_signals_path='../dreamdiffusion/datasets/eeg_5_95_std.pth', 
-            splits_path = '../dreamdiffusion/datasets/block_splits_by_image_single.pth',
+def create_EEG_dataset(eeg_signals_path='../DreamDiffusion/datasets/eeg_5_95_std.pth', 
+            splits_path = '../DreamDiffusion/datasets/block_splits_by_image_single.pth',
             # splits_path = '../dreamdiffusion/datasets/block_splits_by_image_all.pth',
             image_transform=identity, subject = 0):
     # if subject == 0:
@@ -405,9 +405,9 @@ def create_EEG_dataset(eeg_signals_path='../dreamdiffusion/datasets/eeg_5_95_std
 
 
 
-def create_EEG_dataset_r(eeg_signals_path='../dreamdiffusion/datasets/eeg_5_95_std.pth', 
+def create_EEG_dataset_r(eeg_signals_path='../DreamDiffusion/datasets/eeg_5_95_std.pth', 
             # splits_path = '../dreamdiffusion/datasets/block_splits_by_image_single.pth',
-            splits_path = '../dreamdiffusion/datasets/block_splits_by_image_all.pth',
+            splits_path = '../DreamDiffusion/datasets/block_splits_by_image_all.pth',
             image_transform=identity):
     if isinstance(image_transform, list):
         dataset_train = EEGDataset_r(eeg_signals_path, image_transform[0])

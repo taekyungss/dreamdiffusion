@@ -8,6 +8,7 @@ dreamdiffuion/
 processed/results/eeg_pretrain/
 wandb/
 datasets/
+data/
 
 
 # C extensions
