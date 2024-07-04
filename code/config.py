@@ -64,7 +64,8 @@ class Config_EEG_finetune(Config_MBM_finetune):
         self.splits_path = os.path.join(self.root_path, 'datasets/block_splits_by_image_all.pth')
 
         self.dataset = 'EEG' 
-        self.pretrain_mbm_path = '../dreamdiffusion/pretrains/eeg_pretrain/checkpoint.pth' 
+        self.pretrain_mbm_path = '../DreamDiffusion/code/processed/results/eeg_pretrain/03-07-2024-17-30-55/checkpoints/checkpoint.pth'
+        
 
         self.include_nonavg_test = True
 
