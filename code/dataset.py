@@ -13,8 +13,9 @@ from typing import Callable, Optional, Tuple, Union
 from natsort import natsorted
 from glob import glob
 import pickle
-
 from transformers import AutoProcessor
+
+
 def identity(x):
     return x
 def pad_to_patch_size(x, patch_size):
