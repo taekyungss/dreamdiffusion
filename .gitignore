@@ -9,6 +9,8 @@ processed/results/eeg_pretrain/
 wandb/
 datasets/
 data/
+pretrains/
+processed/
 
 
 # C extensions
