@@ -68,8 +68,7 @@ class Config_EEG_finetune(Config_MBM_finetune):
 
         self.dataset = 'EEG' 
 
-        ## 지금 요 값이 없음 -> pretrain mbm 이걸 학습시킬 방도를 찾아야함 !
-        self.pretrain_mbm_path = '/home/summer24/DreamDiffusion/checkpoint.pth'
+        self.pretrain_mbm_path = '/home/summer24/DreamDiffusion/pretrains/eeg_pretrain/checkpoint.pth'
         self.include_nonavg_test = True
 
 
@@ -110,7 +109,7 @@ class Config_Generative_Model:
         self.pretrain_gm_path = os.path.join(self.root_path, 'pretrains')
         
         self.dataset = 'EEG' 
-        self.pretrain_mbm_path = None
+        self.pretrain_mbm_path = '/home/summer24/DreamDiffusion/pretrains/eeg_pretrain/checkpoint.pth'
 
         self.img_size = 512
 

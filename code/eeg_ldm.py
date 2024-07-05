@@ -10,7 +10,7 @@ from PIL import Image
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 import copy
-
+import io
 from torch.nn import Identity
 import lpips
 
@@ -152,8 +152,9 @@ def main(config):
     # print(num_voxels)
 
     # prepare pretrained mbm 
-
+    # Mask-Based Modeling
     pretrain_mbm_metafile = torch.load(config.pretrain_mbm_path, map_location='cpu')
+
 
     # create generateive model
     generative_model = eLDM(pretrain_mbm_metafile, num_voxels,
