@@ -94,23 +94,28 @@ class cond_stage_model(nn.Module):
     
 
 
+
 class eLDM:
 
     def __init__(self, metafile, num_voxels, device=torch.device('cpu'),
                  pretrain_root='../pretrains/',
-                 logger=None, ddim_steps=250, global_pool=True, use_time_cond=False, clip_tune = True, cls_tune = False):
+                 logger=None, ddim_steps=125, global_pool=True, use_time_cond=False, clip_tune = True, cls_tune = False, temperature=1.0):
         # self.ckp_path = os.path.join(pretrain_root, 'model.ckpt')
-        self.ckp_path = os.path.join(pretrain_root, 'models/v1-5-pruned.ckpt')
-        self.config_path = os.path.join(pretrain_root, 'models/config15.yaml') 
+
+        # 여기다가 stable diffusion ckpt 들어감.
+        self.ckp_path = '/home/summer24/DreamDiffusion/pretrains/models/v1-5-pruned.ckpt'
+        self.config_path = os.path.join('/home/summer24/DreamDiffusion/pretrains/models/config15.yaml')
         config = OmegaConf.load(self.config_path)
         config.model.params.unet_config.params.use_time_cond = use_time_cond
         config.model.params.unet_config.params.global_pool = global_pool
 
         self.cond_dim = config.model.params.unet_config.params.context_dim
 
+        print(config.model.target)
+
         model = instantiate_from_config(config.model)
         pl_sd = torch.load(self.ckp_path, map_location="cpu")['state_dict']
-       
+
         m, u = model.load_state_dict(pl_sd, strict=False)
         model.cond_stage_trainable = True
         model.cond_stage_model = cond_stage_model(metafile, num_voxels, self.cond_dim, global_pool=global_pool, clip_tune = clip_tune,cls_tune = cls_tune)
@@ -124,10 +129,9 @@ class eLDM:
         model.p_image_size = config.model.params.image_size
         model.ch_mult = config.model.params.first_stage_config.params.ddconfig.ch_mult
 
-        
-        self.device = device    
+        self.device = device
         self.model = model
-        
+
         self.model.clip_tune = clip_tune
         self.model.cls_tune = cls_tune
 
@@ -135,6 +139,7 @@ class eLDM:
         self.pretrain_root = pretrain_root
         self.fmri_latent_dim = model.cond_stage_model.fmri_latent_dim
         self.metafile = metafile
+        self.temperature=temperature
 
     def finetune(self, trainers, dataset, test_dataset, bs1, lr1,
                 output_path, config=None):
@@ -145,11 +150,12 @@ class eLDM:
         # self.model.train_dataset = dataset
         self.model.run_full_validation_threshold = 0.15
         # stage one: train the cond encoder with the pretrained one
-      
+
         # # stage one: only optimize conditional encoders
         print('\n##### Stage One: only optimize conditional encoders #####')
-        dataloader = DataLoader(dataset, batch_size=bs1, shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=bs1, shuffle=False)
+        print(f'batch_size is: {bs1}')
+        dataloader = DataLoader(dataset, batch_size=bs1, num_workers=8, shuffle=True)
+        test_loader = DataLoader(test_dataset, batch_size=bs1, num_workers=8, shuffle=False)
         self.model.unfreeze_whole_model()
         self.model.freeze_first_stage()
         # self.model.freeze_whole_model()
@@ -161,24 +167,23 @@ class eLDM:
         trainers.fit(self.model, dataloader, val_dataloaders=test_loader)
 
         self.model.unfreeze_whole_model()
-        
+
         torch.save(
             {
                 'model_state_dict': self.model.state_dict(),
                 'config': config,
                 'state': torch.random.get_rng_state()
-
             },
-            os.path.join(output_path, 'checkpoint.pth')
+            os.path.join(output_path, 'checkpoint_eLDM.pth')
         )
-        
+
 
     @torch.no_grad()
-    def generate(self, fmri_embedding, num_samples, ddim_steps, HW=None, limit=None, state=None, output_path = None):
+    def generate(self, fmri_embedding, num_samples, ddim_steps, HW=None, limit=None, state=None, output_path = None, shouldSave = True):
         # fmri_embedding: n, seq_len, embed_dim
         all_samples = []
         if HW is None:
-            shape = (self.ldm_config.model.params.channels, 
+            shape = (self.ldm_config.model.params.channels,
                 self.ldm_config.model.params.image_size, self.ldm_config.model.params.image_size)
         else:
             num_resolutions = len(self.ldm_config.model.params.first_stage_config.params.ddconfig.ch_mult)
@@ -186,11 +191,11 @@ class eLDM:
                 HW[0] // 2**(num_resolutions-1), HW[1] // 2**(num_resolutions-1))
 
         model = self.model.to(self.device)
-        sampler = PLMSSampler(model)
+        sampler = PLMSSampler(model, temperature=self.temperature)
         # sampler = DDIMSampler(model)
         if state is not None:
             torch.cuda.set_rng_state(state)
-            
+
         with model.ema_scope():
             model.eval()
             for count, item in enumerate(fmri_embedding):
@@ -202,10 +207,10 @@ class eLDM:
                 gt_image = rearrange(item['image'], 'h w c -> 1 c h w') # h w c
                 print(f"rendering {num_samples} examples in {ddim_steps} steps.")
                 # assert latent.shape[-1] == self.fmri_latent_dim, 'dim error'
-                
+
                 c, re_latent = model.get_learned_conditioning(repeat(latent, 'h w -> c h w', c=num_samples).to(self.device))
                 # c = model.get_learned_conditioning(repeat(latent, 'h w -> c h w', c=num_samples).to(self.device))
-                samples_ddim, _ = sampler.sample(S=ddim_steps, 
+                samples_ddim, _ = sampler.sample(S=ddim_steps,
                                                 conditioning=c,
                                                 batch_size=num_samples,
                                                 shape=shape,
@@ -214,15 +219,15 @@ class eLDM:
                 x_samples_ddim = model.decode_first_stage(samples_ddim)
                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
                 gt_image = torch.clamp((gt_image+1.0)/2.0, min=0.0, max=1.0)
-                
+
                 all_samples.append(torch.cat([gt_image, x_samples_ddim.detach().cpu()], dim=0)) # put groundtruth at first
-                if output_path is not None:
+                if output_path is not None and shouldSave == True:
                     samples_t = (255. * torch.cat([gt_image, x_samples_ddim.detach().cpu()], dim=0).numpy()).astype(np.uint8)
                     for copy_idx, img_t in enumerate(samples_t):
                         img_t = rearrange(img_t, 'c h w -> h w c')
-                        Image.fromarray(img_t).save(os.path.join(output_path, 
+                        Image.fromarray(img_t).save(os.path.join(output_path,
                             f'./test{count}-{copy_idx}.png'))
-        
+
         # display as grid
         grid = torch.stack(all_samples, 0)
         grid = rearrange(grid, 'n b c h w -> (n b) c h w')
@@ -231,5 +236,5 @@ class eLDM:
         # to image
         grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
         model = model.to('cpu')
-        
+
         return grid, (255. * torch.stack(all_samples, 0).cpu().numpy()).astype(np.uint8)
