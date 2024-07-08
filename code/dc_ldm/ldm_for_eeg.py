@@ -101,6 +101,8 @@ class eLDM:
                  pretrain_root='../pretrains/',
                  logger=None, ddim_steps=125, global_pool=True, use_time_cond=False, clip_tune = True, cls_tune = False, temperature=1.0):
         # self.ckp_path = os.path.join(pretrain_root, 'model.ckpt')
+
+        # 여기다가 stable diffusion ckpt 들어감.
         self.ckp_path = '/home/summer24/DreamDiffusion/pretrains/models/v1-5-pruned.ckpt'
         self.config_path = os.path.join('/home/summer24/DreamDiffusion/pretrains/models/config15.yaml')
         config = OmegaConf.load(self.config_path)
@@ -110,6 +112,7 @@ class eLDM:
         self.cond_dim = config.model.params.unet_config.params.context_dim
 
         print(config.model.target)
+
         model = instantiate_from_config(config.model)
         pl_sd = torch.load(self.ckp_path, map_location="cpu")['state_dict']
 
@@ -125,7 +128,6 @@ class eLDM:
         model.p_channels = config.model.params.channels
         model.p_image_size = config.model.params.image_size
         model.ch_mult = config.model.params.first_stage_config.params.ddconfig.ch_mult
-
 
         self.device = device
         self.model = model
@@ -171,7 +173,6 @@ class eLDM:
                 'model_state_dict': self.model.state_dict(),
                 'config': config,
                 'state': torch.random.get_rng_state()
-
             },
             os.path.join(output_path, 'checkpoint_eLDM.pth')
         )
