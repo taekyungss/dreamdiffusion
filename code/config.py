@@ -68,7 +68,7 @@ class Config_EEG_finetune(Config_MBM_finetune):
 
         self.dataset = 'EEG' 
 
-        self.pretrain_mbm_path = '/home/summer24/DreamDiffusion/pretrains/eeg_pretrain/checkpoint.pth'
+        self.pretrain_mbm_path = '/home/summer24/DreamDiffusion/DreamDiffuion/results/eeg_pretrain/05-07-2024-15-48-16/checkpoints/checkpoint.pth'
         self.include_nonavg_test = True
 
 
@@ -109,7 +109,7 @@ class Config_Generative_Model:
         self.pretrain_gm_path = os.path.join(self.root_path, 'pretrains')
         
         self.dataset = 'EEG' 
-        self.pretrain_mbm_path = '/home/summer24/DreamDiffusion/pretrains/eeg_pretrain/checkpoint.pth'
+        self.pretrain_mbm_path = '/home/summer24/DreamDiffusion/DreamDiffuion/results/eeg_pretrain/05-07-2024-15-48-16/checkpoints/checkpoint.pth'
 
         self.img_size = 512
 
