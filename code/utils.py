@@ -52,6 +52,8 @@ def get_eval_metric(samples, avg=True):
             res = get_similarity_metric(pred_images, gt_images, method='pair-wise', metric_name=m)
             res_part.append(np.mean(res))
         res_list.append(np.mean(res_part))
+
+
     # No class metric for now
     # res_part = []
     # for s in samples_to_run:
