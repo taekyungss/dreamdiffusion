@@ -68,7 +68,7 @@ if __name__ == '__main__':
     config = sd['config']
     # update paths
     config.root_path = root
-    config.pretrain_mbm_path = '../dreamdiffusion/results/eeg_pretrain/19-02-2023-08-48-17/checkpoints/checkpoint.pth'
+    config.pretrain_mbm_path = './home/summer24/DreamDiffusion/DreamDiffuion/results/eeg_pretrain/05-07-2024-15-48-16/checkpoints/checkpoint.pth'
     config.pretrain_gm_path = '../dreamdiffusion/pretrains/'
     print(config.__dict__)
 
