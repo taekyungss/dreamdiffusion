@@ -69,7 +69,7 @@ if __name__ == '__main__':
     # update paths
     config.root_path = root
     config.pretrain_mbm_path = './home/summer24/DreamDiffusion/DreamDiffuion/results/eeg_pretrain/05-07-2024-15-48-16/checkpoints/checkpoint.pth'
-    config.pretrain_gm_path = '../dreamdiffusion/pretrains/'
+    config.pretrain_gm_path = '/home/summer24/DreamDiffusion/pretrains/generation/checkpoint_best.pth'
     print(config.__dict__)
 
     output_path = os.path.join(config.root_path, 'results', 'eval',  
@@ -91,7 +91,7 @@ if __name__ == '__main__':
     ])
 
     
-    splits_path = "../dreamdiffusion/datasets/block_splits_by_image_single.pth"
+    splits_path = "/home/summer24/DreamDiffusion/datasets/block_splits_by_image_single.pth"
     dataset_train, dataset_test = create_EEG_dataset(eeg_signals_path = config.eeg_signals_path, splits_path = splits_path, 
                 image_transform=[img_transform_train, img_transform_test], subject = 4)
     num_voxels = dataset_test.dataset.data_len

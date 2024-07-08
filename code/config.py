@@ -107,7 +107,6 @@ class Config_Generative_Model:
         self.mlp_ratio = 1.0
 
         self.pretrain_gm_path = os.path.join(self.root_path, 'pretrains')
-        
         self.dataset = 'EEG' 
         self.pretrain_mbm_path = '/home/summer24/DreamDiffusion/DreamDiffuion/results/eeg_pretrain/05-07-2024-15-48-16/checkpoints/checkpoint.pth'
 
@@ -115,6 +114,7 @@ class Config_Generative_Model:
 
         np.random.seed(self.seed)
         # finetune parameters
+        # memeory 문제로 batch 5->1
         self.batch_size = 5 if self.dataset == 'GOD' else 25
         self.lr = 5.3e-5
         self.num_epoch = 500
