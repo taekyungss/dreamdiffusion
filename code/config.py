@@ -14,12 +14,15 @@ class Config_MBM_EEG(Config_MAE_fMRI):
     # --------------------------------------------
     # MAE for fMRI
         # Training Parameters
-        self.lr = 2.5e-4
+        self.root_path = '../DreamDiffusion/'
+        self.eeg_signals_path = os.path.join(self.root_path, 'datasets/eeg_5_95_std.pth')
+        self.crop_ratio = 0.2
+        self.lr = 1e-4
         self.min_lr = 0.
-        self.weight_decay = 0.05
+        self.weight_decay = 0.15
         self.num_epoch = 500
         self.warmup_epochs = 40
-        self.batch_size = 100
+        self.batch_size = 16
         self.clip_grad = 0.8
         
         # Model Parameters
@@ -28,9 +31,10 @@ class Config_MBM_EEG(Config_MAE_fMRI):
         self.embed_dim = 1024 #256 # has to be a multiple of num_heads -> 원래 dimension은 128차원 -> num_heads =8 -> 128*8 = 1024
         self.decoder_embed_dim = 512 #128
         self.depth = 12
-        self.num_heads = 16
-        self.decoder_num_heads = 16
+        self.num_heads = 8
+        self.decoder_num_heads = 8
         self.mlp_ratio = 1.0
+        self.img_size = 512
 
         # Project setting
         self.root_path = 'DreamDiffuion/'

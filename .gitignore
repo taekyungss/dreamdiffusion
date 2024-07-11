@@ -16,6 +16,8 @@ processed/
 # C extensions
 *.so
 *.wandb
+*.png
+*.md
 
 # Distribution / packaging
 .Python

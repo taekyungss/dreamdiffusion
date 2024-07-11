@@ -97,9 +97,9 @@ class cond_stage_model(nn.Module):
 
 class eLDM:
 
-    # def __init__(self, metafile, num_voxels, device=torch.device('cpu'),
+    def __init__(self, metafile, num_voxels, device=torch.device('cpu'),
     # taetae edit
-    def __init__(self, metafile, num_voxels, device=torch.device('cuda'),
+    # def __init__(self, metafile, num_voxels, device=torch.device('cuda'),
 
                  pretrain_root='../pretrains/',
                  logger=None, ddim_steps=125, global_pool=True, use_time_cond=False, clip_tune = True, cls_tune = False, temperature=1.0):
@@ -119,7 +119,7 @@ class eLDM:
         model = instantiate_from_config(config.model)
         # pl_sd = torch.load(self.ckp_path, map_location="cpu")['state_dict']
         # taetae
-        pl_sd = torch.load(self.ckp_path, map_location="cuda")['state_dict']
+        pl_sd = torch.load(self.ckp_path, map_location="cpu")['state_dict']
 
         m, u = model.load_state_dict(pl_sd, strict=False)
         model.cond_stage_trainable = True
@@ -159,6 +159,8 @@ class eLDM:
         # # stage one: only optimize conditional encoders
         print('\n##### Stage One: only optimize conditional encoders #####')
         print(f'batch_size is: {bs1}')
+
+        
         dataloader = DataLoader(dataset, batch_size=bs1, num_workers=4, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=bs1, num_workers=4, shuffle=False)
         self.model.unfreeze_whole_model()
