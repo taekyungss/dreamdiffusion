@@ -72,7 +72,7 @@ class Config_EEG_finetune(Config_MBM_finetune):
 
         self.dataset = 'EEG' 
 
-        self.pretrain_mbm_path = 'DreamDiffuion/results/eeg_pretrain/05-07-2024-15-48-16/checkpoints/checkpoint.pth'
+        self.pretrain_mbm_path = 'DreamDiffuion/results/eeg_pretrain/11-07-2024-07-07-28/checkpoints/checkpoint.pth'
         self.include_nonavg_test = True
 
 
@@ -119,7 +119,7 @@ class Config_Generative_Model:
         np.random.seed(self.seed)
         # finetune parameters
         # memeory 문제로 batch 5->1
-        self.batch_size = 4 if self.dataset == 'GOD' else 2
+        self.batch_size = 4 if self.dataset == 'GOD' else 16
         self.lr = 5.3e-5
         self.num_epoch = 500
         
@@ -130,7 +130,7 @@ class Config_Generative_Model:
         self.use_time_cond = True
         self.clip_tune = True #False
         self.cls_tune = False
-        self.subject = 4
+        self.subject = 6
         self.eval_avg = True
 
         # diffusion sampling parameters
@@ -179,7 +179,7 @@ class Config_Cls_Model:
         self.use_time_cond = True
         self.clip_tune = True #False
         self.cls_tune = False
-        self.subject = 4
+        self.subject = 6
         self.eval_avg = True
 
         # diffusion sampling parameters

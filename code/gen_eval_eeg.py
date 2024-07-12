@@ -109,6 +109,8 @@ if __name__ == '__main__':
                 ddim_steps=config.ddim_steps, global_pool=config.global_pool, use_time_cond=config.use_time_cond)
     # m, u = model.load_state_dict(pl_sd, strict=False)
     generative_model.model.load_state_dict(sd['model_state_dict'], strict=False)
+
+    
     print('load ldm successfully')
     state = sd['state']
     os.makedirs(output_path, exist_ok=True)

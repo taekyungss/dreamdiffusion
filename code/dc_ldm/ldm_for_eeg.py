@@ -31,6 +31,8 @@ def clip_loss(similarity: torch.Tensor) -> torch.Tensor:
     return (caption_loss + image_loss) / 2.0
 
 class cond_stage_model(nn.Module):
+
+    #         model.cond_stage_model = cond_stage_model(metafile, num_voxels, self.cond_dim, global_pool=global_pool, clip_tune = clip_tune,cls_tune = cls_tune)
     def __init__(self, metafile, num_voxels=440, cond_dim=1280, global_pool=True, clip_tune = True, cls_tune = False):
         super().__init__()
         # prepare pretrained fmri mae 
@@ -100,9 +102,8 @@ class eLDM:
     def __init__(self, metafile, num_voxels, device=torch.device('cpu'),
     # taetae edit
     # def __init__(self, metafile, num_voxels, device=torch.device('cuda'),
-
-                 pretrain_root='../pretrains/',
-                 logger=None, ddim_steps=125, global_pool=True, use_time_cond=False, clip_tune = True, cls_tune = False, temperature=1.0):
+            pretrain_root='../pretrains/',
+            logger=None, ddim_steps=125, global_pool=True, use_time_cond=False, clip_tune = True, cls_tune = False, temperature=1.0):
         # self.ckp_path = os.path.join(pretrain_root, 'model.ckpt')
 
         # 여기다가 stable diffusion ckpt 들어감.
