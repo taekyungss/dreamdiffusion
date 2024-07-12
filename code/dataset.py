@@ -241,7 +241,7 @@ class EEGDataset_r(Dataset):
     # Constructor
     def __init__(self, image_transform=identity):
 
-        self.imagesource = '/home/summer24/DreamDiffusion/data/processed/eegData_images'
+        self.imagesource = 'data/processed/eegData_images'
         self.image_transform = image_transform
         self.num_voxels = 440
         self.data_len = 1024
@@ -277,7 +277,7 @@ class EEGDataset_s(Dataset):
         self.eeg = loaded['dataset']
         self.labels = loaded["labels"]
         self.images = loaded["images"]
-        self.imagesource = '/home/summer24/DreamDiffusion/data/processed/eegData_images'
+        self.imagesource = 'data/processed/eegData_images'
         self.image_transform = image_transform
         self.num_voxels = 1024
         # Compute size

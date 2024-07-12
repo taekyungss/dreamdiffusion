@@ -26,7 +26,9 @@ class PatchEmbed1D(nn.Module):
         self.dropout = nn.Dropout(dropout_rate)
 
     def forward(self, x, **kwargs):
+        # batch, channel, voxels ( 2, 128, 440 )
         B, C, V = x.shape # batch, channel, voxels
+
         # assert V == self.num_voxels, \
         #     f"Input fmri length ({V}) doesn't match model ({self.num_voxels})."
         x = self.proj(x).transpose(1, 2).contiguous() # put embed_dim at the last dimension

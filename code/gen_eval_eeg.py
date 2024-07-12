@@ -5,6 +5,7 @@ from einops import rearrange
 from PIL import Image
 import torchvision.transforms as transforms
 from config import *
+import io
 import wandb
 import datetime
 import argparse
@@ -66,10 +67,11 @@ if __name__ == '__main__':
 
     sd = torch.load(args.model_path, map_location='cpu')
     config = sd['config']
+    print(config)
     # update paths
     config.root_path = root
-    config.pretrain_mbm_path = '../dreamdiffusion/results/eeg_pretrain/19-02-2023-08-48-17/checkpoints/checkpoint.pth'
-    config.pretrain_gm_path = '../dreamdiffusion/pretrains/'
+    config.pretrain_mbm_path = 'pretrains/eeg_pretrain/checkpoint.pth'
+    config.pretrain_gm_path = 'exps/results/generation/09-07-2024-00-13-49/checkpoint_eLDM.pth'
     print(config.__dict__)
 
     output_path = os.path.join(config.root_path, 'results', 'eval',  
@@ -91,7 +93,7 @@ if __name__ == '__main__':
     ])
 
     
-    splits_path = "../dreamdiffusion/datasets/block_splits_by_image_single.pth"
+    splits_path = "datasets/block_splits_by_image_single.pth"
     dataset_train, dataset_test = create_EEG_dataset(eeg_signals_path = config.eeg_signals_path, splits_path = splits_path, 
                 image_transform=[img_transform_train, img_transform_test], subject = 4)
     num_voxels = dataset_test.dataset.data_len
@@ -100,12 +102,15 @@ if __name__ == '__main__':
     print(len(dataset_test))
     # prepare pretrained mae 
     pretrain_mbm_metafile = torch.load(config.pretrain_mbm_path, map_location='cpu')
+
     # create generateive model
     generative_model = eLDM(pretrain_mbm_metafile, num_voxels,
                 device=device, pretrain_root=config.pretrain_gm_path, logger=config.logger,
                 ddim_steps=config.ddim_steps, global_pool=config.global_pool, use_time_cond=config.use_time_cond)
     # m, u = model.load_state_dict(pl_sd, strict=False)
     generative_model.model.load_state_dict(sd['model_state_dict'], strict=False)
+
+    
     print('load ldm successfully')
     state = sd['state']
     os.makedirs(output_path, exist_ok=True)

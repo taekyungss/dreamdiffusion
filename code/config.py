@@ -14,12 +14,15 @@ class Config_MBM_EEG(Config_MAE_fMRI):
     # --------------------------------------------
     # MAE for fMRI
         # Training Parameters
-        self.lr = 2.5e-4
+        self.root_path = '../DreamDiffusion/'
+        self.eeg_signals_path = os.path.join(self.root_path, 'datasets/eeg_5_95_std.pth')
+        self.crop_ratio = 0.2
+        self.lr = 1e-4
         self.min_lr = 0.
-        self.weight_decay = 0.05
+        self.weight_decay = 0.15
         self.num_epoch = 500
         self.warmup_epochs = 40
-        self.batch_size = 100
+        self.batch_size = 16
         self.clip_grad = 0.8
         
         # Model Parameters
@@ -28,9 +31,10 @@ class Config_MBM_EEG(Config_MAE_fMRI):
         self.embed_dim = 1024 #256 # has to be a multiple of num_heads -> 원래 dimension은 128차원 -> num_heads =8 -> 128*8 = 1024
         self.decoder_embed_dim = 512 #128
         self.depth = 12
-        self.num_heads = 16
-        self.decoder_num_heads = 16
+        self.num_heads = 8
+        self.decoder_num_heads = 8
         self.mlp_ratio = 1.0
+        self.img_size = 512
 
         # Project setting
         self.root_path = 'DreamDiffuion/'
@@ -68,7 +72,7 @@ class Config_EEG_finetune(Config_MBM_finetune):
 
         self.dataset = 'EEG' 
 
-        self.pretrain_mbm_path = '/home/summer24/DreamDiffusion/pretrains/eeg_pretrain/checkpoint.pth'
+        self.pretrain_mbm_path = 'DreamDiffuion/results/eeg_pretrain/11-07-2024-07-07-28/checkpoints/checkpoint.pth'
         self.include_nonavg_test = True
 
 
@@ -107,15 +111,15 @@ class Config_Generative_Model:
         self.mlp_ratio = 1.0
 
         self.pretrain_gm_path = os.path.join(self.root_path, 'pretrains')
-        
         self.dataset = 'EEG' 
-        self.pretrain_mbm_path = '/home/summer24/DreamDiffusion/pretrains/eeg_pretrain/checkpoint.pth'
+        self.pretrain_mbm_path = 'DreamDiffuion/results/eeg_pretrain/05-07-2024-15-48-16/checkpoints/checkpoint.pth'
 
         self.img_size = 512
 
         np.random.seed(self.seed)
         # finetune parameters
-        self.batch_size = 5 if self.dataset == 'GOD' else 25
+        # memeory 문제로 batch 5->1
+        self.batch_size = 4 if self.dataset == 'GOD' else 16
         self.lr = 5.3e-5
         self.num_epoch = 500
         
@@ -126,7 +130,7 @@ class Config_Generative_Model:
         self.use_time_cond = True
         self.clip_tune = True #False
         self.cls_tune = False
-        self.subject = 4
+        self.subject = 6
         self.eval_avg = True
 
         # diffusion sampling parameters
@@ -175,7 +179,7 @@ class Config_Cls_Model:
         self.use_time_cond = True
         self.clip_tune = True #False
         self.cls_tune = False
-        self.subject = 4
+        self.subject = 6
         self.eval_avg = True
 
         # diffusion sampling parameters
