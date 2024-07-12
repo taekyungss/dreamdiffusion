@@ -154,7 +154,7 @@ def main(config):
     # prepare pretrained mbm 
     # Mask-Based Modeling
     pretrain_mbm_metafile = torch.load(config.pretrain_mbm_path, map_location='cpu')
-    print('pretrain_mbm_metafile',pretrain_mbm_metafile)
+    # print('pretrain_mbm_metafile',pretrain_mbm_metafile)
 
 
     # create generateive model
