@@ -9,3 +9,9 @@
 ```sh
 python -m torch.distributed.launch --nproc_per_node=4 code/stageA1_eeg_pretrain.py
 ```
+
+### stage2 code
+
+```sh
+CUDA_VISIBLE_DEVICES=6,7 python code/eeg_ldm.py
+```
