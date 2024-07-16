@@ -113,7 +113,6 @@ class MAEforEEG(nn.Module):
         # initialize (and freeze) pos_embed by sin-cos embedding
 
         # 이 부분이 position embedding 적용 for MAE
-    
         pos_embed = get_1d_sincos_pos_embed(self.pos_embed.shape[-1], self.num_patches, cls_token=True)
         self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
 

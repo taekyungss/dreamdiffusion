@@ -70,8 +70,9 @@ if __name__ == '__main__':
     print(config)
     # update paths
     config.root_path = root
-    config.pretrain_mbm_path = 'pretrains/eeg_pretrain/checkpoint.pth'
-    config.pretrain_gm_path = 'exps/results/generation/09-07-2024-00-13-49/checkpoint_eLDM.pth'
+    config.pretrain_mbm_path = 'DreamDiffuion/results/eeg_pretrain/11-07-2024-07-07-28/checkpoints/checkpoint.pth'
+    config.pretrain_gm_path = 'exps/results/generation/12-07-2024-00-49-39/checkpoint_eLDM.pth'
+    config.eeg_signals_path = "datasets/eeg_5_95_std.pth"
     print(config.__dict__)
 
     output_path = os.path.join(config.root_path, 'results', 'eval',  
@@ -95,7 +96,7 @@ if __name__ == '__main__':
     
     splits_path = "datasets/block_splits_by_image_single.pth"
     dataset_train, dataset_test = create_EEG_dataset(eeg_signals_path = config.eeg_signals_path, splits_path = splits_path, 
-                image_transform=[img_transform_train, img_transform_test], subject = 4)
+                image_transform=[img_transform_train, img_transform_test], subject = 6)
     num_voxels = dataset_test.dataset.data_len
 
     # num_voxels = dataset_test.num_voxels
