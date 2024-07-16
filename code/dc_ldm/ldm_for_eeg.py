@@ -202,7 +202,9 @@ class eLDM:
         sampler = PLMSSampler(model, temperature=self.temperature)
         # sampler = DDIMSampler(model)
         if state is not None:
-            torch.cuda.set_rng_state(state)
+            # taetae
+            # torch.cuda.set_rng_state(state)
+            torch.set_rng_state(state)
 
         with model.ema_scope():
             model.eval()
