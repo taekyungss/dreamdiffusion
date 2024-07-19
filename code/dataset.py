@@ -155,7 +155,7 @@ class eeg_pretrain_dataset(Dataset):
         ret = ret/10 # reduce an order
         # torch.tensor()
         ret = torch.from_numpy(ret).float()
-        return {'eeg': ret } #,
+        return {'eeg': ret }
 
 
 
@@ -235,6 +235,7 @@ def make_dataset(dir):
     return images
  
 
+/
 
 class EEGDataset_r(Dataset):
 

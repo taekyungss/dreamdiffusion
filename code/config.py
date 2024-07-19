@@ -16,6 +16,7 @@ class Config_MBM_EEG(Config_MAE_fMRI):
         # Training Parameters
         self.root_path = '../DreamDiffusion/'
         self.eeg_signals_path = os.path.join(self.root_path, 'datasets/eeg_5_95_std.pth')
+        self.splits_path = os.path.join(self.root_path, 'datasets/block_splits_by_image_all.pth')
         self.crop_ratio = 0.2
         self.lr = 1e-4
         self.min_lr = 0.
