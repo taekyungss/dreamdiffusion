@@ -16,7 +16,7 @@ import copy
 from config import Config_MBM_EEG
 from dataset import eeg_pretrain_dataset
 from sc_mbm.mae_for_eeg import MAEforEEG
-from sc_mbm.trainer import train_one_epoch
+from sc_mbm.trainer import train_one_epoch, validate
 from sc_mbm.trainer import NativeScalerWithGradNormCount as NativeScaler
 from sc_mbm.utils import save_model
 
@@ -119,7 +119,7 @@ def main(config):
     config.local_rank = local_rank
     output_path = os.path.join(config.root_path, 'results', 'eeg_pretrain',  '%s'%(datetime.datetime.now().strftime("%d-%m-%Y-%H-%M-%S")))
     config.output_path = output_path
-    # logger = wandb_logger(config) if local_rank == 0 else None
+    logger = wandb_logger(config) if local_rank == 0 else None
     
     if local_rank == 0:
         os.makedirs(output_path, exist_ok=True)
@@ -129,20 +129,29 @@ def main(config):
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
 
-    dataset_pretrain = eeg_pretrain_dataset(path='datasets/eegdataset/eeg', roi=config.roi, patch_size=config.patch_size,
+    dataset_train_pretrain = eeg_pretrain_dataset(path='datasets/eegdata/train/eeg', roi=config.roi, patch_size=config.patch_size,
+                transform=fmri_transform, aug_times=config.aug_times, num_sub_limit=config.num_sub_limit, 
+                include_kam=config.include_kam, include_hcp=config.include_hcp)
+    
+    # taetae validation loss 추가
+    dataset_val_pretrain = eeg_pretrain_dataset(path='datasets/eegdata/val/eeg', roi=config.roi, patch_size=config.patch_size,
                 transform=fmri_transform, aug_times=config.aug_times, num_sub_limit=config.num_sub_limit, 
                 include_kam=config.include_kam, include_hcp=config.include_hcp)
    
-    print(f'Dataset size: {len(dataset_pretrain)}\n Time len: {dataset_pretrain.data_len}')
+    print(f'Dataset size: {len(dataset_train_pretrain)}\n Time len: {dataset_train_pretrain.data_len}')
 
-    sampler = torch.utils.data.DistributedSampler(dataset_pretrain, rank=local_rank)
+    sampler_train = torch.utils.data.DistributedSampler(dataset_train_pretrain, rank=local_rank)
+    sampler_val  = torch.utils.data.DistributedSampler(dataset_val_pretrain, rank=local_rank)
 
-    dataloader_eeg = DataLoader(dataset_pretrain, batch_size=config.batch_size, sampler=sampler, 
+    train_dataloader= DataLoader(dataset_train_pretrain, batch_size=config.batch_size, sampler=sampler_train, 
                 shuffle=False, pin_memory=True)
 
+    val_dataloader= DataLoader(dataset_val_pretrain, batch_size=config.batch_size, sampler=sampler_val, 
+            shuffle=False, pin_memory=True)
+
     # create model
-    config.time_len=dataset_pretrain.data_len
-    model = MAEforEEG(time_len=dataset_pretrain.data_len, patch_size=config.patch_size, embed_dim=config.embed_dim,
+    config.time_len=dataset_train_pretrain.data_len
+    model = MAEforEEG(time_len=dataset_train_pretrain.data_len, patch_size=config.patch_size, embed_dim=config.embed_dim,
                     decoder_embed_dim=config.decoder_embed_dim, depth=config.depth, 
                     num_heads=config.num_heads, decoder_num_heads=config.decoder_num_heads, mlp_ratio=config.mlp_ratio,
                     focus_range=config.focus_range, focus_rate=config.focus_rate, 
@@ -176,30 +185,47 @@ def main(config):
         for param in img_feature_extractor.parameters():
             param.requires_grad = False
 
+
     for ep in range(config.num_epoch):
         if torch.cuda.device_count() > 1: 
-            sampler.set_epoch(ep) # to shuffle the data at every epoch
-        # cor = train_one_epoch(model, dataloader_eeg, optimizer, device, ep, loss_scaler, logger, config, start_time, model_without_ddp,
-        #                     img_feature_extractor, preprocess)
-            cor = train_one_epoch(model, dataloader_eeg, optimizer, device, ep, loss_scaler, config, start_time, model_without_ddp,
-                                 img_feature_extractor, preprocess)
+            sampler_train.set_epoch(ep)  # Shuffle the data at every epoch
+            sampler_val.set_epoch(ep)
+        
+        train_cor, val_loss, val_cor = train_one_epoch(
+                    model,
+                    train_dataloader,
+                    val_dataloader,
+                    optimizer,
+                    device,
+                    ep,
+                    loss_scaler,
+                    logger,
+                    config,
+                    start_time,
+                    model_without_ddp,
+                    img_feature_extractor,
+                    preprocess
+                )
+        cor_list.append(train_cor)
 
-        cor_list.append(cor)
-        if (ep % 20 == 0 or ep + 1 == config.num_epoch) and local_rank == 0: #and ep != 0
-            # save models
-        # if True:
-            save_model(config, ep, model_without_ddp, optimizer, loss_scaler, os.path.join(output_path,'checkpoints'))
-            # plot figures
-            # plot_recon_figures(model, device, dataset_pretrain, output_path, 5, config, logger, model_without_ddp)
-            plot_recon_figures(model, device, dataset_pretrain, output_path, 5, config, model_without_ddp)
+        # Validation phase
+        val_cor = validate(model, val_dataloader, device, loss_scaler, model_without_ddp)
+        
+        if (ep % 20 == 0 or ep + 1 == config.num_epoch) and local_rank == 0:
+            save_model(config, ep, model_without_ddp, optimizer, loss_scaler, os.path.join(output_path, 'checkpoints'))
+            plot_recon_figures(model, device, dataset_train, output_path, 5, config, logger, model_without_ddp)
             
+        if logger is not None:
+            logger.log('val_cor', val_cor, step=ep)
+        
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
-    # if logger is not None:
-    #     logger.log('max cor', np.max(cor_list), step=config.num_epoch-1)
-    #     logger.finish()
-    # return
+    if logger is not None:
+        logger.log('max cor', np.max(cor_list), step=config.num_epoch-1)
+        logger.finish()
+
+
 
 @torch.no_grad()
 def plot_recon_figures(model, device, dataset, output_path, num_figures = 5, config=None, logger=None, model_without_ddp=None):

@@ -110,16 +110,19 @@ def is_npy_ext(fname: Union[str, Path]) -> bool:
     return f'{ext}' == 'npy'# type: ignore
 
 class eeg_pretrain_dataset(Dataset):
-    def __init__(self, path='data/processed/eegData_npy', roi='VC', patch_size=16, transform=identity, aug_times=2, 
-                num_sub_limit=None, include_kam=False, include_hcp=True):
+    def __init__(self, path, roi='VC', patch_size=16, transform=None, aug_times=2, 
+                 num_sub_limit=None, include_kam=False, include_hcp=True):
         super(eeg_pretrain_dataset, self).__init__()
-        data = []
-        images = []
-        self.input_paths = [str(f) for f in sorted(Path(path).rglob('*')) if is_npy_ext(f) and os.path.isfile(f)]
+        
+        self.transform = transform if transform is not None else lambda x: x
+        self.input_paths = [str(f) for f in sorted(Path(path).rglob('*')) if f.suffix == '.npy' and os.path.isfile(f)]
+        
+        if not self.input_paths:
+            raise ValueError('No data found')
 
-        assert len(self.input_paths) != 0, 'No data found'
-        self.data_len  = 1024
+        self.data_len = 1024
         self.data_chan = 128
+
 
     def __len__(self):
         return len(self.input_paths)
@@ -235,7 +238,6 @@ def make_dataset(dir):
     return images
  
 
-/
 
 class EEGDataset_r(Dataset):
 
@@ -302,7 +304,7 @@ class EEGDataset_s(Dataset):
 class EEGDataset(Dataset):
     
     # Constructor
-    def __init__(self, eeg_signals_path, image_transform=identity, subject = 4):
+    def __init__(self, eeg_signals_path, image_transform=identity, subject = 0):
         # Load EEG signals
         loaded = torch.load(eeg_signals_path)
         # if opt.subject!=0:
@@ -368,7 +370,6 @@ class Splitter:
         self.dataset = dataset
         # Load split
         loaded = torch.load(split_path)
-
         self.split_idx = loaded["splits"][split_num][split_name]
         # Filter data
         self.split_idx = [i for i in self.split_idx if i <= len(self.dataset.data) and 450 <= self.dataset.data[i]["eeg"].size(1) <= 600]

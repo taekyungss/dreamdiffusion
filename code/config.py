@@ -54,7 +54,7 @@ class Config_MBM_EEG(Config_MAE_fMRI):
         self.focus_rate = 0.6
 
         # distributed training
-        self.local_rank = 0,1,2,3
+        self.local_rank = 0
 
 
 

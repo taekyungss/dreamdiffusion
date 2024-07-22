@@ -105,6 +105,7 @@ class MAEforEEG(nn.Module):
         self.focus_rate = focus_rate
         self.img_recon_weight = img_recon_weight
         self.use_nature_img_loss = use_nature_img_loss
+        self.decoder_embed_dim = decoder_embed_dim
 
         self.initialize_weights()
 
@@ -148,6 +149,9 @@ class MAEforEEG(nn.Module):
             torch.nn.init.normal_(m.weight, std=.02)
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
+
+
+
     def patchify(self, imgs):
         """
         imgs: (N, 1, num_voxels)
@@ -159,7 +163,11 @@ class MAEforEEG(nn.Module):
         assert imgs.ndim == 3 and imgs.shape[1] % p == 0
 
         # h = imgs.shape[2] // p
-        x = imgs.reshape(shape=(imgs.shape[0], imgs.shape[1] // p, -1))
+        # x = imgs.reshape(shape=(imgs.shape[0], imgs.shape[1] // p, -1))
+
+        # taetae
+        x = imgs.reshape(shape=(imgs.shape[0], imgs.shape[1], imgs.shape[2] // p, p))
+        x = x.permute(0, 2, 1, 3).reshape(shape=(imgs.shape[0], imgs.shape[2] // p, -1))
         return x
 
     def unpatchify(self, x):
@@ -209,6 +217,10 @@ class MAEforEEG(nn.Module):
         # unshuffle to get the binary mask
         mask = torch.gather(mask, dim=1, index=ids_restore)
 
+        target_length =  self.decoder_embed_dim
+        if mask.shape[1] != target_length:
+            mask = torch.cat([mask, torch.ones(N, target_length - L, device=x.device)], dim=1)
+
         return x_masked, mask, ids_restore
 
     def forward_encoder(self, x, mask_ratio):
@@ -237,6 +249,8 @@ class MAEforEEG(nn.Module):
     def forward_decoder(self, x, ids_restore = None):
         # embed tokens
         x = self.decoder_embed(x)
+        # print('decoder embed')
+        # print(x.shape)
         # append mask tokens to sequence
         mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], 1)
         x_ = torch.cat([x[:, 1:, :], mask_tokens], dim=1)  # no cls token
@@ -252,8 +266,10 @@ class MAEforEEG(nn.Module):
         for blk in self.decoder_blocks:
             x = blk(x)
         x = self.decoder_norm(x)
+        # print(x.shape)
         # predictor projection
         x = self.decoder_pred(x)
+        # print(x.shape)
 
         # remove cls token
         x = x[:, 1:, :]
@@ -302,9 +318,9 @@ class MAEforEEG(nn.Module):
         pred: [N, L, p]
         mask: [N, L], 0 is keep, 1 is remove,
         """
-        imgs = imgs.transpose(1,2)
+        # imgs = imgs.transpose(1,2)
         target = self.patchify(imgs)
-        # target = imgs.transpose(1,2)
+        target = target.transpose(1,2)
         loss = (pred - target) ** 2
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
         # loss = loss.mean()
@@ -314,11 +330,17 @@ class MAEforEEG(nn.Module):
     def forward(self, imgs, img_features=None, valid_idx=None, mask_ratio=0.75):
         # latent = self.forward_encoder(imgs, mask_ratio)
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
-
+            # print(x)
+        # print(latent.shape)
+        # # print(mask)
+        # print(mask.shape)
+        # # print(ids_restore)
+        # print(ids_restore.shape)
 
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p]
-        # mask=None
+        pred = pred.transpose(1,2)
         loss = self.forward_loss(imgs, pred, mask)
+        # print(self.unpatchify(pred.transpose(1,2)).shape)
 
         if self.use_nature_img_loss and img_features is not None:
             # valid_idx = torch.nonzero(nature_image.sum(dim=(1,2,3)) != 0).squeeze(1)
@@ -392,14 +414,18 @@ class eeg_encoder(nn.Module):
         x = self.patch_embed(x)
 
         # add pos embed w/o cls token
+        # print(x.shape)
+        # print(self.pos_embed[:, 1:, :].shape)
         x = x + self.pos_embed[:, 1:, :]
         # apply Transformer blocks
         for blk in self.blocks:
             x = blk(x)
+        # print(x.shape)
         if self.global_pool:
             x = x.mean(dim=1, keepdim=True)
+        # print(x.shape)
         x = self.norm(x)
-
+        # print(x.shape)
         return x
 
     def forward(self, imgs):
