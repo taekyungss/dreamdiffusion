@@ -5,6 +5,7 @@ from torch._six import inf
 import numpy as np
 import time
 
+
 class NativeScalerWithGradNormCount:
     state_dict_key = "amp_scaler"
 
@@ -48,35 +49,47 @@ def get_grad_norm_(parameters, norm_type: float = 2.0):
         total_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), norm_type).to(device) for p in parameters]), norm_type)
     return total_norm
 
+def unpatchify(self, x):
+    """
+    x: (N, L, patch_size)
+    imgs: (N, 1, num_voxels)
+    """
+    p = self.patch_embed.patch_size
+    h = x.shape[1]
 
-def train_one_epoch(model, train_loader, val_loader, optimizer, device, epoch, loss_scaler, log_writer=None, config=None, start_time=None, model_without_ddp=None, img_feature_extractor=None, preprocess=None):
+    imgs = x.reshape(shape=(x.shape[0], -1, x.shape[2] // p))
+    return imgs.transpose(1,2)
+    
+def train_one_epoch(model, data_loader, optimizer, device, epoch, 
+                        loss_scaler, log_writer=None, config=None, start_time=None, model_without_ddp=None, 
+                        img_feature_extractor=None, preprocess=None):
     model.train(True)
     optimizer.zero_grad()
     total_loss = []
     total_cor = []
     accum_iter = config.accum_iter
-
-    # Training loop
-    for data_iter_step, (data_dcit) in enumerate(train_loader):
+    for data_iter_step, (data_dcit) in enumerate(data_loader):
         if data_iter_step % accum_iter == 0:
-            ut.adjust_learning_rate(optimizer, data_iter_step / len(train_loader) + epoch, config)
-
+            ut.adjust_learning_rate(optimizer, data_iter_step / len(data_loader) + epoch, config)
         samples = data_dcit['eeg']
+        
         img_features = None
         valid_idx = None
-
         if img_feature_extractor is not None:
             images = data_dcit['image']
             valid_idx = torch.nonzero(images.sum(dim=(1,2,3)) != 0).squeeze(1)
             img_feature_extractor.eval()
             with torch.no_grad():
                 img_features = img_feature_extractor(preprocess(images[valid_idx]).to(device))['layer2']
-
         samples = samples.to(device)
+        # img_features = img_features.to(device)
+
         optimizer.zero_grad()
-        
         with torch.cuda.amp.autocast(enabled=True):
             loss, pred, _ = model(samples, img_features, valid_idx=valid_idx, mask_ratio=config.mask_ratio)
+        # loss.backward()
+        # norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.clip_grad)
+        # optimizer.step()
 
         loss_value = loss.item()
 
@@ -84,77 +97,68 @@ def train_one_epoch(model, train_loader, val_loader, optimizer, device, epoch, l
             print(f"Loss is {loss_value}, stopping training at step {data_iter_step} epoch {epoch}")
             sys.exit(1)
 
+        # loss /= accum_iter
         loss_scaler(loss, optimizer, parameters=model.parameters(), clip_grad=config.clip_grad)
 
+        # if (data_iter_step + 1) % accum_iter == 0:
+        # cal the cor
         pred = pred.to('cpu').detach()
         samples = samples.to('cpu').detach()
         pred = model_without_ddp.unpatchify(pred)
-        cor = torch.mean(torch.tensor([torch.corrcoef(torch.cat([p[0].unsqueeze(0), s[0].unsqueeze(0)], axis=0))[0,1] for p, s in zip(pred, samples)])).item()
 
+
+        # definiton of cor : 상관계수 계산 -> 우리가 하고 있는게 eeg data를 masking해서 원본 신호처럼 강건하게 reconstruction 하는거니까!
+
+        cor = torch.mean(torch.tensor([torch.corrcoef(torch.cat([p[0].unsqueeze(0), s[0].unsqueeze(0)],axis=0))[0,1] for p, s in zip(pred, samples)])).item()
         optimizer.zero_grad()
+
         total_loss.append(loss_value)
         total_cor.append(cor)
-
         if device == torch.device('cuda:0'):
             lr = optimizer.param_groups[0]["lr"]
             print('train_loss_step:', np.mean(total_loss), 'lr:', lr, 'cor', np.mean(total_cor))
 
-    # Validation step
-    val_loss, val_cor = validate(model, val_loader, device, loss_scaler, model_without_ddp, config)
-
     if log_writer is not None:
         lr = optimizer.param_groups[0]["lr"]
         log_writer.log('train_loss_step', np.mean(total_loss), step=epoch)
-        log_writer.log('train_cor', np.mean(total_cor), step=epoch)
-        log_writer.log('val_loss', val_loss, step=epoch)
-        log_writer.log('val_cor', val_cor, step=epoch)
         log_writer.log('lr', lr, step=epoch)
+        log_writer.log('cor', np.mean(total_cor), step=epoch)
         if start_time is not None:
-            log_writer.log('time (min)', (time.time() - start_time) / 60.0, step=epoch)
+            log_writer.log('time (min)', (time.time() - start_time)/60.0, step=epoch)
+    if config.local_rank == 0:        
+        print(f'[Epoch {epoch}] loss: {np.mean(total_loss)}')
 
-    if config.local_rank == 0:
-        print(f'[Epoch {epoch}] train_loss: {np.mean(total_loss)}, train_cor: {np.mean(total_cor)}, val_loss: {val_loss}, val_cor: {val_cor}')
-
-    return np.mean(total_cor), val_loss, val_cor
-
-
-
-def validate(model, data_loader, device, loss_scaler=None, model_without_ddp=None, config=None):
-    model.eval()
-    total_loss = []
-    total_cor = []
-
-    with torch.no_grad():
-        for data_dcit in data_loader:
-            samples = data_dcit['eeg']
-            img_features = None
-            valid_idx = None
-
-            if img_feature_extractor is not None:
-                images = data_dcit['image']
-                valid_idx = torch.nonzero(images.sum(dim=(1,2,3)) != 0).squeeze(1)
-                img_feature_extractor.eval()
-                with torch.no_grad():
-                    img_features = img_feature_extractor(preprocess(images[valid_idx]).to(device))['layer2']
-
-            samples = samples.to(device)
-            loss, pred, _ = model(samples, img_features, valid_idx=valid_idx, mask_ratio=config.mask_ratio)
-
-            loss_value = loss.item()
-
-            if not math.isfinite(loss_value):
-                print(f"Validation Loss is {loss_value}, stopping validation")
-                sys.exit(1)
-
-            pred = pred.to('cpu').detach()
-            samples = samples.to('cpu').detach()
-            pred = model_without_ddp.unpatchify(pred)
-            cor = torch.mean(torch.tensor([torch.corrcoef(torch.cat([p[0].unsqueeze(0), s[0].unsqueeze(0)], axis=0))[0,1] for p, s in zip(pred, samples)])).item()
-
-            total_loss.append(loss_value)
-            total_cor.append(cor)
-
-    avg_loss = np.mean(total_loss)
-    avg_cor = np.mean(total_cor)
+    return np.mean(total_cor)
     
+
+
+def validate(model, dataloader, device, config,model_without_ddp=None, log_writer=None):
+    model.eval()
+    total_loss = 0.0
+    total_cor = 0.0
+    num_samples = 0
+    
+    with torch.no_grad():
+        for batch in dataloader:
+            sample = batch['eeg'].to(device)
+            loss, pred, mask = model(sample, mask_ratio=config.mask_ratio)
+            total_loss += loss.item()
+
+            if model_without_ddp is not None:
+                pred = model_without_ddp.unpatchify(pred).to('cpu').squeeze(0)[0].numpy()
+            else:
+                pred = pred.to('cpu').squeeze(0)[0].numpy()
+
+            sample = sample.to('cpu').squeeze(0)[0].numpy()
+            cor = np.corrcoef(pred.flatten(), sample.flatten())[0, 1]
+            total_cor += cor
+            num_samples += 1
+            print('valid_loss_step:', np.mean(total_loss), 'cor', np.mean(total_cor))
+
+            if log_writer is not None:
+                log_writer.log('valid_loss_step', np.mean(total_loss), step=num_samples)
+                log_writer.log('cor', np.mean(total_cor), step=num_samples)
+
+    avg_loss = total_loss / len(dataloader)
+    avg_cor = total_cor / num_samples
     return avg_loss, avg_cor
