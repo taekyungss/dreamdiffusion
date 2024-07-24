@@ -87,6 +87,7 @@ def train_one_epoch(model, data_loader, optimizer, device, epoch,
         optimizer.zero_grad()
         with torch.cuda.amp.autocast(enabled=True):
             loss, pred, _ = model(samples, img_features, valid_idx=valid_idx, mask_ratio=config.mask_ratio)
+            
         # loss.backward()
         # norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.clip_grad)
         # optimizer.step()
@@ -139,8 +140,8 @@ def validate(model, dataloader, device, config,model_without_ddp=None, log_write
     num_samples = 0
     
     with torch.no_grad():
-        for batch in dataloader:
-            sample = batch['eeg'].to(device)
+        for data_iter_step, data_dcit in enumerate(dataloader):
+            sample = data_dcit['eeg'].to(device)
             loss, pred, mask = model(sample, mask_ratio=config.mask_ratio)
             total_loss += loss.item()
 
@@ -162,3 +163,31 @@ def validate(model, dataloader, device, config,model_without_ddp=None, log_write
     avg_loss = total_loss / len(dataloader)
     avg_cor = total_cor / num_samples
     return avg_loss, avg_cor
+
+
+ 
+class EarlyStopping(object):
+    def __init__(self, patience=2, save_path="model.pth"):
+        self._min_loss = np.inf
+        self._patience = patience
+        self._path = save_path
+        self.__counter = 0
+ 
+    def should_stop(self, model, loss):
+        if loss < self._min_loss:
+            self._min_loss = loss
+            self.__counter = 0
+            torch.save(model.state_dict(), self._path)
+        elif loss > self._min_loss:
+            self.__counter += 1
+            if self.__counter >= self._patience:
+                return True
+        return False
+   
+    def load(self, model):
+        model.load_state_dict(torch.load(self._path))
+        return model
+    
+    @property
+    def counter(self):
+        return self.__counter

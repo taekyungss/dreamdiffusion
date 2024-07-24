@@ -211,6 +211,7 @@ class MAEforEEG(nn.Module):
 
         return x_masked, mask, ids_restore
 
+
     def forward_encoder(self, x, mask_ratio):
         # embed patches
         x = self.patch_embed(x)
@@ -283,8 +284,6 @@ class MAEforEEG(nn.Module):
         x = self.nature_img_decoder_norm(x)
         # remove cls token
         x = x[:, 1:, :]
-        # predictor projection
-        # x = x.mean(dim=1, keepdim=True)
         x = self.nature_img_decoder_pred(x)
         x = x.view(x.shape[0], 512, 28, 28)
 
@@ -312,24 +311,18 @@ class MAEforEEG(nn.Module):
         loss = (pred - target) ** 2
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
         # loss = loss.mean()
-        loss = (loss * mask).sum() / mask.sum()  if mask.sum() != 0 else (loss * mask).sum() # mean loss on removed patches
-        return loss
+        if torch.all(mask==0):
+            loss = loss.sum()
+            return loss
+        else:
+            loss = (loss * mask).sum() / mask.sum()  if mask.sum() != 0 else (loss * mask).sum() # mean loss on removed patches
+            return loss
 
     def forward(self, imgs, img_features=None, valid_idx=None, mask_ratio=0.75):
         # latent = self.forward_encoder(imgs, mask_ratio)
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
-            # print(x)
-        # print(latent.shape)
-        # # print(mask)
-        # print(mask.shape)
-        # # print(ids_restore)
-        # print(ids_restore.shape)
 
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p]
-        # pred = self.forward_decoder(latent)  # [N, L, p]
-        # pred = pred
-        # print(pred.shape)
-        # mask=None
         loss = self.forward_loss(imgs, pred, mask)
         # print(self.unpatchify(pred.transpose(1,2)).shape)
 

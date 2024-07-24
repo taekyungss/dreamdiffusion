@@ -17,6 +17,7 @@ from config import Config_MBM_EEG
 from dataset import eeg_pretrain_dataset
 from sc_mbm.mae_for_eeg import MAEforEEG
 from sc_mbm.trainer import train_one_epoch, validate
+from sc_mbm.trainer import EarlyStopping
 from sc_mbm.trainer import NativeScalerWithGradNormCount as NativeScaler
 from sc_mbm.utils import save_model
 
@@ -128,6 +129,7 @@ def main(config):
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
 
+    early_stopper = EarlyStopping(patience=4)
     # create dataset and dataloader -> eegData_npy 불러옴
     # dataset_pretrain = eeg_pretrain_dataset(path='DreamDiffusion/data/processed/eegData_npy', roi=config.roi, patch_size=config.patch_size,
     #             transform=fmri_transform, aug_times=config.aug_times, num_sub_limit=config.num_sub_limit, 
@@ -150,7 +152,7 @@ def main(config):
                 shuffle=False, pin_memory=True)
    
     print(f'Dataset size: {len(train_dataset)}\n Time len: {train_dataset.data_len}')
-
+    print(f'Dataset size: {len(valid_dataset)}\n Time len: {valid_dataset.data_len}')
 
     # create model
     config.time_len=train_dataset.data_len
@@ -195,18 +197,24 @@ def main(config):
         cor = train_one_epoch(model, train_dataloader_eeg, optimizer, device, ep, loss_scaler, logger, config, start_time, model_without_ddp,
                             img_feature_extractor, preprocess)
         cor_list.append(cor)
+
+        val_loss, val_cor = validate(model, valid_dataloader_eeg, device, config)
+        print(f"Validation Loss: {val_loss:.4f} Validation Cor : {val_cor:.4f}")
+
+        if logger is not None:
+            logger.log('val_loss', val_loss, step=ep)
+            logger.log('val_cor', val_cor, step=ep)
+
         if (ep % 20 == 0 or ep + 1 == config.num_epoch) and local_rank == 0: #and ep != 0
             # save models
         # if True:
             save_model(config, ep, model_without_ddp, optimizer, loss_scaler, os.path.join(output_path,'checkpoints'))
             # plot figures
             plot_recon_figures(model, device, train_dataset, output_path, 5, config, logger, model_without_ddp)
-
-            val_loss, val_cor = validate(model, valid_dataloader_eeg, device, config)
-            print(f"Validation Loss: {val_loss:.4f} Validation Cor : {val_cor:.4f}")
-            if logger is not None:
-                logger.log('val_loss', val_loss, step=ep)
-                logger.log('val_cor', val_cor, step=ep)
+        
+        if early_stopper.should_stop(model,val_loss):
+            print(f"EarlyStopping: [Epoch: {ep - early_stopper.counter}]")
+            break
             
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))

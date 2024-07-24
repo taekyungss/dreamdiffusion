@@ -5,7 +5,6 @@
     "version": "0.2.0",
     "configurations": [
 
-        
 
         {
             "name": "Python Debugger: Current File",
@@ -17,7 +16,8 @@
                 "--nproc_per_node=1"
             ],
             "console": "integratedTerminal",
-            // "args": ["--dataset","EEG", "--model_path", "exps/results/generation/12-07-2024-00-49-39/checkpoint_eLDM.pth"],
+            "args" : ["--mask_ratio", "0", "--batch_size", "64"],
+            // "args": ["--dataset", "EEG", "--pretrain_mbm_path", "/Data/summer24/mind-vis/pretrains/GOD/fmri_encoder.pth"],
             "env": {
                 "CUDA_VISIBLE_DEVICES": "7"
             }
