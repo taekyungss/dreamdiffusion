@@ -16,14 +16,13 @@ class Config_MBM_EEG(Config_MAE_fMRI):
         # Training Parameters
         self.root_path = '../DreamDiffusion/'
         self.eeg_signals_path = os.path.join(self.root_path, 'datasets/eeg_5_95_std.pth')
-        self.splits_path = os.path.join(self.root_path, 'datasets/block_splits_by_image_all.pth')
         self.crop_ratio = 0.2
         self.lr = 1e-4
         self.min_lr = 0.
         self.weight_decay = 0.15
         self.num_epoch = 500
         self.warmup_epochs = 40
-        self.batch_size = 16
+        self.batch_size = 32
         self.clip_grad = 0.8
         
         # Model Parameters
@@ -93,7 +92,7 @@ class Config_EEG_finetune(Config_MBM_finetune):
         self.focus_rate = 0.6
 
         # distributed training
-        self.local_rank = 0,1,2,3
+        self.local_rank = 0
         
 class Config_Generative_Model:
     def __init__(self):

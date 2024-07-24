@@ -10,7 +10,7 @@ from pathlib import Path
 import torchvision.transforms as transforms
 from scipy.interpolate import interp1d
 from typing import Callable, Optional, Tuple, Union
-from natsort import natsorted
+# from natsort import natsorted
 from glob import glob
 import pickle
 from transformers import AutoProcessor
@@ -184,6 +184,8 @@ def get_img_label(class_index:dict, img_filename:list, naive_label_set=None):
                 break
     return img_label, naive_label
 
+
+
 class base_dataset(Dataset):
     def __init__(self, x, y=None, transform=identity):
         super(base_dataset, self).__init__()
@@ -197,6 +199,8 @@ class base_dataset(Dataset):
             return self.transform(self.x[index])
         else:
             return self.transform(self.x[index]), self.transform(self.y[index])
+    
+
     
 def remove_repeats(fmri, img_lb):
     assert len(fmri) == len(img_lb), 'len error'

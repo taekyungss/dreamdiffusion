@@ -105,7 +105,6 @@ class MAEforEEG(nn.Module):
         self.focus_rate = focus_rate
         self.img_recon_weight = img_recon_weight
         self.use_nature_img_loss = use_nature_img_loss
-        self.decoder_embed_dim = decoder_embed_dim
 
         self.initialize_weights()
 
@@ -149,9 +148,6 @@ class MAEforEEG(nn.Module):
             torch.nn.init.normal_(m.weight, std=.02)
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
-
-
-
     def patchify(self, imgs):
         """
         imgs: (N, 1, num_voxels)
@@ -163,11 +159,7 @@ class MAEforEEG(nn.Module):
         assert imgs.ndim == 3 and imgs.shape[1] % p == 0
 
         # h = imgs.shape[2] // p
-        # x = imgs.reshape(shape=(imgs.shape[0], imgs.shape[1] // p, -1))
-
-        # taetae
-        x = imgs.reshape(shape=(imgs.shape[0], imgs.shape[1], imgs.shape[2] // p, p))
-        x = x.permute(0, 2, 1, 3).reshape(shape=(imgs.shape[0], imgs.shape[2] // p, -1))
+        x = imgs.reshape(shape=(imgs.shape[0], imgs.shape[1] // p, -1))
         return x
 
     def unpatchify(self, x):
@@ -216,10 +208,6 @@ class MAEforEEG(nn.Module):
         mask[:, :len_keep] = 0
         # unshuffle to get the binary mask
         mask = torch.gather(mask, dim=1, index=ids_restore)
-
-        target_length =  self.decoder_embed_dim
-        if mask.shape[1] != target_length:
-            mask = torch.cat([mask, torch.ones(N, target_length - L, device=x.device)], dim=1)
 
         return x_masked, mask, ids_restore
 
@@ -318,9 +306,9 @@ class MAEforEEG(nn.Module):
         pred: [N, L, p]
         mask: [N, L], 0 is keep, 1 is remove,
         """
-        # imgs = imgs.transpose(1,2)
+        imgs = imgs.transpose(1,2)
         target = self.patchify(imgs)
-        target = target.transpose(1,2)
+        # target = imgs.transpose(1,2)
         loss = (pred - target) ** 2
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
         # loss = loss.mean()
@@ -338,7 +326,10 @@ class MAEforEEG(nn.Module):
         # print(ids_restore.shape)
 
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p]
-        pred = pred.transpose(1,2)
+        # pred = self.forward_decoder(latent)  # [N, L, p]
+        # pred = pred
+        # print(pred.shape)
+        # mask=None
         loss = self.forward_loss(imgs, pred, mask)
         # print(self.unpatchify(pred.transpose(1,2)).shape)
 
