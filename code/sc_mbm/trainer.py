@@ -5,6 +5,7 @@ from torch._six import inf
 import numpy as np
 import time
 
+
 class NativeScalerWithGradNormCount:
     state_dict_key = "amp_scaler"
 
@@ -48,7 +49,17 @@ def get_grad_norm_(parameters, norm_type: float = 2.0):
         total_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), norm_type).to(device) for p in parameters]), norm_type)
     return total_norm
 
+def unpatchify(self, x):
+    """
+    x: (N, L, patch_size)
+    imgs: (N, 1, num_voxels)
+    """
+    p = self.patch_embed.patch_size
+    h = x.shape[1]
 
+    imgs = x.reshape(shape=(x.shape[0], -1, x.shape[2] // p))
+    return imgs.transpose(1,2)
+    
 def train_one_epoch(model, data_loader, optimizer, device, epoch, 
                         loss_scaler, log_writer=None, config=None, start_time=None, model_without_ddp=None, 
                         img_feature_extractor=None, preprocess=None):
@@ -58,11 +69,6 @@ def train_one_epoch(model, data_loader, optimizer, device, epoch,
     total_cor = []
     accum_iter = config.accum_iter
     for data_iter_step, (data_dcit) in enumerate(data_loader):
-        
-        # we use a per iteration (instead of per epoch) lr scheduler
-        # print(data_iter_step)
-        # print(len(data_loader))
-        
         if data_iter_step % accum_iter == 0:
             ut.adjust_learning_rate(optimizer, data_iter_step / len(data_loader) + epoch, config)
         samples = data_dcit['eeg']
@@ -81,6 +87,7 @@ def train_one_epoch(model, data_loader, optimizer, device, epoch,
         optimizer.zero_grad()
         with torch.cuda.amp.autocast(enabled=True):
             loss, pred, _ = model(samples, img_features, valid_idx=valid_idx, mask_ratio=config.mask_ratio)
+            
         # loss.backward()
         # norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.clip_grad)
         # optimizer.step()
@@ -98,15 +105,7 @@ def train_one_epoch(model, data_loader, optimizer, device, epoch,
         # cal the cor
         pred = pred.to('cpu').detach()
         samples = samples.to('cpu').detach()
-        # pred = pred.transpose(1,2) #model_without_ddp.unpatchify(pred)
         pred = model_without_ddp.unpatchify(pred)
-        # print(pred.shape)
-        # print(samples.shape)
-        # for p, s in zip(pred, samples):
-        #     print(p[0], s[0])
-        #     print(torch.cat([p[0].unsqueeze(0), s[0].unsqueeze(0)],axis=0))
-        #     print(torch.corrcoef(torch.cat([p[0].unsqueeze(0), s[0].unsqueeze(0)],axis=0)))
-        #     print(torch.corrcoef(torch.cat([p[0].unsqueeze(0), s[0].unsqueeze(0)],axis=0))[0,1])
 
 
         # definiton of cor : 상관계수 계산 -> 우리가 하고 있는게 eeg data를 masking해서 원본 신호처럼 강건하게 reconstruction 하는거니까!
@@ -131,3 +130,64 @@ def train_one_epoch(model, data_loader, optimizer, device, epoch,
         print(f'[Epoch {epoch}] loss: {np.mean(total_loss)}')
 
     return np.mean(total_cor)
+    
+
+
+def validate(model, dataloader, device, config,model_without_ddp=None, log_writer=None):
+    model.eval()
+    total_loss = 0.0
+    total_cor = 0.0
+    num_samples = 0
+    
+    with torch.no_grad():
+        for data_iter_step, data_dcit in enumerate(dataloader):
+            sample = data_dcit['eeg'].to(device)
+            loss, pred, mask = model(sample, mask_ratio=config.mask_ratio)
+            total_loss += loss.item()
+
+            if model_without_ddp is not None:
+                pred = model_without_ddp.unpatchify(pred).to('cpu').squeeze(0)[0].numpy()
+            else:
+                pred = pred.to('cpu').squeeze(0)[0].numpy()
+
+            sample = sample.to('cpu').squeeze(0)[0].numpy()
+            cor = np.corrcoef(pred.flatten(), sample.flatten())[0, 1]
+            total_cor += cor
+            num_samples += 1
+            print('valid_loss_step:', np.mean(total_loss), 'cor', np.mean(total_cor))
+
+            if log_writer is not None:
+                log_writer.log('valid_loss_step', np.mean(total_loss), step=num_samples)
+                log_writer.log('cor', np.mean(total_cor), step=num_samples)
+
+    avg_loss = total_loss / len(dataloader)
+    avg_cor = total_cor / num_samples
+    return avg_loss, avg_cor
+
+
+ 
+class EarlyStopping(object):
+    def __init__(self, patience=2, save_path="model.pth"):
+        self._min_loss = np.inf
+        self._patience = patience
+        self._path = save_path
+        self.__counter = 0
+ 
+    def should_stop(self, model, loss):
+        if loss < self._min_loss:
+            self._min_loss = loss
+            self.__counter = 0
+            torch.save(model.state_dict(), self._path)
+        elif loss > self._min_loss:
+            self.__counter += 1
+            if self.__counter >= self._patience:
+                return True
+        return False
+   
+    def load(self, model):
+        model.load_state_dict(torch.load(self._path))
+        return model
+    
+    @property
+    def counter(self):
+        return self.__counter

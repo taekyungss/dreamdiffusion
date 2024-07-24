@@ -211,6 +211,7 @@ class MAEforEEG(nn.Module):
 
         return x_masked, mask, ids_restore
 
+
     def forward_encoder(self, x, mask_ratio):
         # embed patches
         x = self.patch_embed(x)
@@ -283,8 +284,6 @@ class MAEforEEG(nn.Module):
         x = self.nature_img_decoder_norm(x)
         # remove cls token
         x = x[:, 1:, :]
-        # predictor projection
-        # x = x.mean(dim=1, keepdim=True)
         x = self.nature_img_decoder_pred(x)
         x = x.view(x.shape[0], 512, 28, 28)
 
@@ -312,24 +311,18 @@ class MAEforEEG(nn.Module):
         loss = (pred - target) ** 2
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
         # loss = loss.mean()
-        loss = (loss * mask).sum() / mask.sum()  if mask.sum() != 0 else (loss * mask).sum() # mean loss on removed patches
-        return loss
+        if torch.all(mask==0):
+            loss = loss.sum()
+            return loss
+        else:
+            loss = (loss * mask).sum() / mask.sum()  if mask.sum() != 0 else (loss * mask).sum() # mean loss on removed patches
+            return loss
 
     def forward(self, imgs, img_features=None, valid_idx=None, mask_ratio=0.75):
         # latent = self.forward_encoder(imgs, mask_ratio)
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
-            # print(x)
-        # print(latent.shape)
-        # # print(mask)
-        # print(mask.shape)
-        # # print(ids_restore)
-        # print(ids_restore.shape)
 
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p]
-        # pred = self.forward_decoder(latent)  # [N, L, p]
-        # pred = pred
-        # print(pred.shape)
-        # mask=None
         loss = self.forward_loss(imgs, pred, mask)
         # print(self.unpatchify(pred.transpose(1,2)).shape)
 
@@ -461,60 +454,3 @@ class mapping(nn.Module):
         x = x.squeeze(1)
         x = self.fc(x)
         return x
-
-if __name__ == '__main__':
-    # mae = MAEforEEG(time_len=512)
-    # mae.forward_encoder(input,0.5)
-    # print(encoder)
-    input = torch.randn(2,128,512)
-    # loss = mae(input)
-    # print(input[:,:,0:4])
-    # print(input.transpose(1,2)[:,0:4,:])
-    # print(mae.patchify(input.transpose(1,2))[:,0,:])
-    # print(loss)
-    encoder = eeg_encoder()
-    out = encoder(input)
-    print(out.shape)
-    clss = classify_network2()
-    pre_cls = clss(out)
-    print(pre_cls.shape)
-    # x, mask, ids_restore = mae.forward_encoder(input,0.75)
-    # # pred = mae.forward_decoder(latent, ids_restore)
-
-    # # print(x)
-    # print(x.shape)
-    # # print(mask)
-    # print(mask.shape)
-    # # print(ids_restore)
-    # print(ids_restore.shape)
-    # pred = mae.forward_decoder(x, ids_restore)
-
-    # # print(pred)
-    # print(pred.shape)
-
-
-
-
-
-
-    # import sys
-    # sys.path.append('..')
-    # print(sys.path)
-    # encoder = eeg_encoder2(num_voxels=440)
-    # decoder = eeg_decoder2(num_voxels=440)
-    # cond = cond_stage_model(encoder)
-    # clss = classify_network2()
-    
-    # print(encoder)
-    # lstm = Model()
-    #现在数据家在上来就是128*1024的了 这样其实就更好做了
-    # input = torch.randn(1,128,128)
-    # # out = encoder(input)
-    # out, latent_crossattn = cond(input)
-    # print(out.shape)
-    # print(latent_crossattn.shape)
-    # pre_cls = clss(latent_crossattn)
-    # print(pre_cls.shape)
-    # recon = decoder(latent_crossattn)
-    # print(recon.shape)
-    # out = lstm(input)

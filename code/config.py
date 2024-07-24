@@ -22,7 +22,7 @@ class Config_MBM_EEG(Config_MAE_fMRI):
         self.weight_decay = 0.15
         self.num_epoch = 500
         self.warmup_epochs = 40
-        self.batch_size = 16
+        self.batch_size = 32
         self.clip_grad = 0.8
         
         # Model Parameters
@@ -53,7 +53,7 @@ class Config_MBM_EEG(Config_MAE_fMRI):
         self.focus_rate = 0.6
 
         # distributed training
-        self.local_rank = 0,1,2,3
+        self.local_rank = 0
 
 
 
@@ -92,7 +92,7 @@ class Config_EEG_finetune(Config_MBM_finetune):
         self.focus_rate = 0.6
 
         # distributed training
-        self.local_rank = 0,1,2,3
+        self.local_rank = 0
         
 class Config_Generative_Model:
     def __init__(self):

@@ -12,11 +12,12 @@ import datetime
 import matplotlib.pyplot as plt
 import wandb
 import copy
-
+# from sklearn.manifold import TSNE
 from config import Config_MBM_EEG
 from dataset import eeg_pretrain_dataset
 from sc_mbm.mae_for_eeg import MAEforEEG
-from sc_mbm.trainer import train_one_epoch
+from sc_mbm.trainer import train_one_epoch, validate
+from sc_mbm.trainer import EarlyStopping
 from sc_mbm.trainer import NativeScalerWithGradNormCount as NativeScaler
 from sc_mbm.utils import save_model
 
@@ -104,7 +105,6 @@ def fmri_transform(x, sparse_rate=0.2):
     return torch.FloatTensor(x_aug)
 
 
-
 def main(config):
     print('num of gpu:')
     print(torch.cuda.device_count())
@@ -129,21 +129,34 @@ def main(config):
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
 
+    early_stopper = EarlyStopping(patience=4)
     # create dataset and dataloader -> eegData_npy 불러옴
-    dataset_pretrain = eeg_pretrain_dataset(path='data/processed/eegData_npy', roi=config.roi, patch_size=config.patch_size,
+    # dataset_pretrain = eeg_pretrain_dataset(path='DreamDiffusion/data/processed/eegData_npy', roi=config.roi, patch_size=config.patch_size,
+    #             transform=fmri_transform, aug_times=config.aug_times, num_sub_limit=config.num_sub_limit, 
+    #             include_kam=config.include_kam, include_hcp=config.include_hcp)
+
+    train_dataset = eeg_pretrain_dataset(path='datasets/eegdata/train/eeg', roi=config.roi, patch_size=config.patch_size,
                 transform=fmri_transform, aug_times=config.aug_times, num_sub_limit=config.num_sub_limit, 
                 include_kam=config.include_kam, include_hcp=config.include_hcp)
-   
-    print(f'Dataset size: {len(dataset_pretrain)}\n Time len: {dataset_pretrain.data_len}')
-
-    sampler = torch.utils.data.DistributedSampler(dataset_pretrain, rank=local_rank)
-
-    dataloader_eeg = DataLoader(dataset_pretrain, batch_size=config.batch_size, sampler=sampler, 
+    
+    train_sampler = torch.utils.data.DistributedSampler(train_dataset, rank=local_rank)
+    train_dataloader_eeg = DataLoader(train_dataset, batch_size=config.batch_size, sampler=train_sampler, 
                 shuffle=False, pin_memory=True)
+    
+    valid_dataset = eeg_pretrain_dataset(path='datasets/eegdata/val/eeg', roi=config.roi, patch_size=config.patch_size,
+                transform=fmri_transform, aug_times=config.aug_times, num_sub_limit=config.num_sub_limit, 
+                include_kam=config.include_kam, include_hcp=config.include_hcp)
+    
+    valid_sampler = torch.utils.data.DistributedSampler(valid_dataset, rank=local_rank)
+    valid_dataloader_eeg = DataLoader(valid_dataset, batch_size=config.batch_size, sampler=valid_sampler, 
+                shuffle=False, pin_memory=True)
+   
+    print(f'Dataset size: {len(train_dataset)}\n Time len: {train_dataset.data_len}')
+    print(f'Dataset size: {len(valid_dataset)}\n Time len: {valid_dataset.data_len}')
 
     # create model
-    config.time_len=dataset_pretrain.data_len
-    model = MAEforEEG(time_len=dataset_pretrain.data_len, patch_size=config.patch_size, embed_dim=config.embed_dim,
+    config.time_len=train_dataset.data_len
+    model = MAEforEEG(time_len=train_dataset.data_len, patch_size=config.patch_size, embed_dim=config.embed_dim,
                     decoder_embed_dim=config.decoder_embed_dim, depth=config.depth, 
                     num_heads=config.num_heads, decoder_num_heads=config.decoder_num_heads, mlp_ratio=config.mlp_ratio,
                     focus_range=config.focus_range, focus_rate=config.focus_rate, 
@@ -180,16 +193,28 @@ def main(config):
     for ep in range(config.num_epoch):
         
         if torch.cuda.device_count() > 1: 
-            sampler.set_epoch(ep) # to shuffle the data at every epoch
-        cor = train_one_epoch(model, dataloader_eeg, optimizer, device, ep, loss_scaler, logger, config, start_time, model_without_ddp,
+            train_sampler.set_epoch(ep) # to shuffle the data at every epoch
+        cor = train_one_epoch(model, train_dataloader_eeg, optimizer, device, ep, loss_scaler, logger, config, start_time, model_without_ddp,
                             img_feature_extractor, preprocess)
         cor_list.append(cor)
+
+        val_loss, val_cor = validate(model, valid_dataloader_eeg, device, config)
+        print(f"Validation Loss: {val_loss:.4f} Validation Cor : {val_cor:.4f}")
+
+        if logger is not None:
+            logger.log('val_loss', val_loss, step=ep)
+            logger.log('val_cor', val_cor, step=ep)
+
         if (ep % 20 == 0 or ep + 1 == config.num_epoch) and local_rank == 0: #and ep != 0
             # save models
         # if True:
             save_model(config, ep, model_without_ddp, optimizer, loss_scaler, os.path.join(output_path,'checkpoints'))
             # plot figures
-            plot_recon_figures(model, device, dataset_pretrain, output_path, 5, config, logger, model_without_ddp)
+            plot_recon_figures(model, device, train_dataset, output_path, 5, config, logger, model_without_ddp)
+        
+        if early_stopper.should_stop(model,val_loss):
+            print(f"EarlyStopping: [Epoch: {ep - early_stopper.counter}]")
+            break
             
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
@@ -198,6 +223,7 @@ def main(config):
         logger.log('max cor', np.max(cor_list), step=config.num_epoch-1)
         logger.finish()
     return
+
 
 @torch.no_grad()
 def plot_recon_figures(model, device, dataset, output_path, num_figures = 5, config=None, logger=None, model_without_ddp=None):
@@ -245,43 +271,6 @@ def plot_recon_figures(model, device, dataset, output_path, num_figures = 5, con
     plt.close(fig)
 
 
-@torch.no_grad()
-def plot_recon_figures2(model, device, dataset, output_path, num_figures = 5, config=None, logger=None, model_without_ddp=None):
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
-    model.eval()
-    fig, axs = plt.subplots(num_figures, 2, figsize=(20,15))
-    fig.tight_layout()
-    axs[0,0].set_title('Ground-truth')
-    # axs[0,1].set_title('Masked Ground-truth')
-    axs[0,1].set_title('Reconstruction')
-
-    for ax in axs:
-        sample = next(iter(dataloader))['eeg']
-        sample = sample.to(device)
-        _, pred, mask = model(sample, mask_ratio=config.mask_ratio)
-        # sample_with_mask = model_without_ddp.patchify(sample.transpose(1,2))[0].to('cpu').numpy().reshape(-1, model_without_ddp.patch_size)
-        sample_with_mask = sample.to('cpu').squeeze(0)[0].numpy().reshape(-1, model_without_ddp.patch_size)
-        # pred = model_without_ddp.unpatchify(pred.transpose(1,2)).to('cpu').squeeze(0)[0].unsqueeze(0).numpy()
-        # sample = sample.to('cpu').squeeze(0)[0].unsqueeze(0).numpy()
-        pred = model_without_ddp.unpatchify(pred).to('cpu').squeeze(0)[0].numpy()
-        # pred = model_without_ddp.unpatchify(model_without_ddp.patchify(sample.transpose(1,2))).to('cpu').squeeze(0)[0].numpy()
-        sample = sample.to('cpu').squeeze(0)[0].numpy()
-        cor = np.corrcoef([pred, sample])[0,1]
-
-        x_axis = np.arange(0, sample.shape[-1])
-        # groundtruth
-        ax[0].plot(x_axis, sample)
-
-        ax[1].plot(x_axis, pred)
-        ax[1].set_ylabel('cor: %.4f'%cor, weight = 'bold')
-        ax[1].yaxis.set_label_position("right")
-
-    fig_name = 'reconst-%s'%(datetime.datetime.now().strftime("%d-%m-%Y-%H-%M-%S"))
-    fig.savefig(os.path.join(output_path, f'{fig_name}.png'))
-    if logger is not None:
-        logger.log_image('reconst', fig)
-    plt.close(fig)
-
 
 def update_config(args, config):
     for attr in config.__dict__:
@@ -297,4 +286,3 @@ if __name__ == '__main__':
     config = Config_MBM_EEG()
     config = update_config(args, config)
     main(config)
-    
