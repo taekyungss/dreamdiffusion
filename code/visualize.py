@@ -15,7 +15,7 @@ config = Config_MBM_EEG()
 local_rank = config.local_rank
 device = torch.device(f'cuda:{local_rank}')
 
-valid_dataset = eeg_pretrain_dataset(path='/Data/summer24/DreamDiffusion/datasets/eegdata/val/eeg', roi=config.roi, patch_size=config.patch_size,
+valid_dataset = eeg_pretrain_dataset(path='/Data/summer24/DreamDiffusion/datasets/eegdata/train/eeg', roi=config.roi, patch_size=config.patch_size,
                 transform=fmri_transform, aug_times=config.aug_times, num_sub_limit=config.num_sub_limit, 
             include_kam=config.include_kam, include_hcp=config.include_hcp)
 
@@ -29,12 +29,12 @@ model = MAEforEEG(time_len=1024, patch_size=config.patch_size, embed_dim=config.
                     focus_range=config.focus_range, focus_rate=config.focus_rate, 
                     img_recon_weight=config.img_recon_weight, use_nature_img_loss=config.use_nature_img_loss)
 
-checkpoint = torch.load("/Data/summer24/DreamDiffusion/DreamDiffuion/results/eeg_pretrain/24-07-2024-02-44-41/checkpoints/checkpoint.pth", map_location='cpu')  # Modify the path to your checkpoint
+checkpoint = torch.load("/Data/summer24/DreamDiffusion/DreamDiffuion/results/eeg_pretrain/11-07-2024-07-07-28/checkpoints/checkpoint.pth", map_location='cpu')  # Modify the path to your checkpoint
 model.load_state_dict(checkpoint['model'], strict=False)
 model.eval()
 all_latents = []
 import pandas as pd
-df = pd.read_csv("/Data/summer24/DreamDiffusion/datasets/eegdata/val/labels.csv",index_col=0)
+df = pd.read_csv("/Data/summer24/DreamDiffusion/datasets/eegdata/train/subject.csv",index_col=0)
 
 with torch.no_grad():
     all_latents = []
@@ -46,12 +46,11 @@ with torch.no_grad():
         latent = latent.view(batch_size, -1) 
         all_latents.append(latent.cpu())
 
-# Concatenate all latent representations
 all_latents = np.concatenate(all_latents, axis=0)
 all_labels = df.values
 
 
-tsne = TSNE(n_components=2)
+tsne = TSNE(n_components=2,perplexity=40)
 latent_tsne = tsne.fit_transform(all_latents)
 
 plt.figure(figsize=(10, 8))
@@ -61,3 +60,4 @@ plt.title('2D t-SNE Visualization of Latent Representations')
 plt.scatter(latent_tsne[:, 0], latent_tsne[:, 1],c=all_labels, alpha=0.5)
 plt.colorbar()
 plt.show()
+plt.savefig('/Data/summer24/DreamDiffusion/result/p40_11-07_checkpoint_tsne_train_subject.png')
