@@ -13,8 +13,7 @@ import torch.nn.functional as F
 class PatchEmbed1D(nn.Module):
     """ 1 Dimensional version of data (fmri voxels) to Patch Embedding
     """
-    # def __init__(self, time_len=224, patch_size=1, in_chans=14, embed_dim=256, dropout_rate=0.2):
-    def __init__(self, time_len=224, patch_size=1, in_chans=128, embed_dim=256, dropout_rate=0.2): # taekyung dropout_rate = 0.2 -> 0.4 / 모델 과적합되는것 같음
+    def __init__(self, time_len=224, patch_size=1, in_chans=128, embed_dim=256, dropout_rate=0.2):
         super().__init__()
         num_patches = time_len // patch_size
         self.patch_shape = patch_size
@@ -34,6 +33,21 @@ class PatchEmbed1D(nn.Module):
         x = self.proj(x).transpose(1, 2).contiguous() # put embed_dim at the last dimension
         x = self.dropout(x)
         return x
+    
+class MLP(nn.Module):
+    def __init__(self, input_dim=1024, hidden_dim1=512, hidden_dim2=256, output_dim=40):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim1),
+            nn.ReLU(),
+            nn.Linear(hidden_dim1, hidden_dim2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim2, output_dim)
+        )
+
+    def forward(self, x):
+        return self.layers(x)
+    
 
 # EEG data로 MAE 즉, masked modeling 를 적용시켜 reconstruction을 수행하는 클래스
 class MAEforEEG(nn.Module):
@@ -43,7 +57,7 @@ class MAEforEEG(nn.Module):
                  depth=24, num_heads=16, decoder_embed_dim=512,
                  decoder_depth=4, decoder_num_heads=16,
                  mlp_ratio=2., norm_layer=nn.LayerNorm, focus_range=None, focus_rate=None, img_recon_weight=1.0,
-                 use_nature_img_loss=False):
+                 use_nature_img_loss=False, num_classes=40):
         super().__init__()
         # --------------------------------------------------------------------------
         # MAE encoder specifics
@@ -99,14 +113,13 @@ class MAEforEEG(nn.Module):
         self.embed_dim = embed_dim
         self.focus_range = focus_range
         self.focus_rate = focus_rate
+        self.num_classes = num_classes
         self.img_recon_weight = img_recon_weight
         self.use_nature_img_loss = use_nature_img_loss
-
+        self.MLP = MLP(embed_dim, 512, 256, num_classes)
         self.initialize_weights()
 
     def initialize_weights(self):
-        # initialization
-        # initialize (and freeze) pos_embed by sin-cos embedding
 
         # 이 부분이 position embedding 적용 for MAE
         pos_embed = get_1d_sincos_pos_embed(self.pos_embed.shape[-1], self.num_patches, cls_token=True)
@@ -131,6 +144,7 @@ class MAEforEEG(nn.Module):
         # initialize nn.Linear and nn.LayerNorm
         self.apply(self._init_weights)
 
+
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
             # we use xavier_uniform following official JAX ViT:
@@ -144,6 +158,8 @@ class MAEforEEG(nn.Module):
             torch.nn.init.normal_(m.weight, std=.02)
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
+
+
     def patchify(self, imgs):
         """
         imgs: (N, 1, num_voxels)
@@ -210,12 +226,8 @@ class MAEforEEG(nn.Module):
     def forward_encoder(self, x, mask_ratio):
         # embed patches
         x = self.patch_embed(x)
-
         # add pos embed w/o cls token
         x = x + self.pos_embed[:, 1:, :]
-        # print('encoder embed')
-        # print(x.shape)
-        # masking: length -> length * mask_ratio
         x, mask, ids_restore = self.random_masking(x, mask_ratio)
 
         # append cls token
@@ -227,8 +239,8 @@ class MAEforEEG(nn.Module):
         for blk in self.blocks:
             x = blk(x)
         x = self.norm(x)
-
         return x, mask, ids_restore
+
 
     def forward_decoder(self, x, ids_restore = None):
         x = self.decoder_embed(x)
@@ -247,26 +259,23 @@ class MAEforEEG(nn.Module):
 
         return x
 
+
     def forward_nature_img_decoder(self, x, ids_restore):
         x = self.nature_img_decoder_embed(x)
-
-        # append mask tokens to sequence
-        mask_tokens = self.nature_img_mask_token.repeat(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], 1)
-        x_ = torch.cat([x[:, 1:, :], mask_tokens], dim=1)  # no cls token
-        x_ = torch.gather(x_, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle
-        x = torch.cat([x[:, :1, :], x_], dim=1)  # append cls token
         x = x + self.nature_img_decoder_pos_embed
+        cls_token = x[:, :1, :]
+        x = x[:, 1:, :]
 
-        # apply Transformer blocks
+        mask_tokens = self.nature_img_mask_token.repeat(x.shape[0], ids_restore.shape[1] - x.shape[1], 1)
+        x_ = torch.cat([x, mask_tokens], dim=1)
+        x_ = torch.gather(x_, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))
+        x = torch.cat([cls_token, x_], dim=1)
+
         for blk in self.nature_img_decoder_blocks:
             x = blk(x)
         x = self.nature_img_decoder_norm(x)
-        # remove cls token
-        x = x[:, 1:, :]
         x = self.nature_img_decoder_pred(x)
-        x = x.view(x.shape[0], 512, 28, 28)
-
-        return x # n, 512, 28, 28
+        return x
 
     def forward_nature_img_loss(self, inputs, reconstructions):
         loss = ((torch.tanh(inputs) - torch.tanh(reconstructions))**2).mean()
@@ -293,19 +302,14 @@ class MAEforEEG(nn.Module):
         loss = (loss * mask).sum() / mask.sum()  if mask.sum() != 0 else (loss * mask).sum() # mean loss on removed patches
         return loss
 
-    def forward(self, imgs, img_features=None, valid_idx=None, mask_ratio=0.75):
-        # latent = self.forward_encoder(imgs, mask_ratio)
+
+
+    def forward(self, imgs, img_features=None, valid_idx=None, mask_ratio=0.75, labels=None):
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
-        pred = self.forward_decoder(latent, ids_restore)  # [N, L, p]
-        # pred = self.forward_decoder(latent)  # [N, L, p]
-        # pred = pred
-        # print(pred.shape)
-        # mask=None
+        pred = self.forward_decoder(latent, ids_restore)
         loss = self.forward_loss(imgs, pred, mask)
-        # print(self.unpatchify(pred.transpose(1,2)).shape)
 
         if self.use_nature_img_loss and img_features is not None:
-            # valid_idx = torch.nonzero(nature_image.sum(dim=(1,2,3)) != 0).squeeze(1)
             if len(valid_idx) != 0:
                 nature_image_recon = self.forward_nature_img_decoder(latent[valid_idx], ids_restore[valid_idx])
                 loss_nature_image_recon = self.forward_nature_img_loss(img_features, nature_image_recon)
@@ -313,9 +317,14 @@ class MAEforEEG(nn.Module):
                     print(loss_nature_image_recon)
                     print("loss_nature_image_recon is nan")
 
-                loss = loss + self.img_recon_weight*loss_nature_image_recon
+                loss = loss + self.img_recon_weight * loss_nature_image_recon
 
-        return loss, pred, mask
+        cls_token = latent[:, 0, :]
+        output = self.MLP(cls_token)
+
+        return loss, pred, mask, output
+
+
 
 class eeg_encoder(nn.Module):
     def __init__(self, time_len=1024, patch_size=4, embed_dim=2048, in_chans=128,
