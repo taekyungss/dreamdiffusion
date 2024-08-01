@@ -17,6 +17,7 @@ from config import Config_MBM_EEG
 from dataset import eeg_pretrain_dataset
 from sc_mbm.mae_for_eeg import MAEforEEG
 from sc_mbm.trainer import train_one_epoch, validate
+from sc_mbm.trainer import EarlyStopping
 from sc_mbm.trainer import NativeScalerWithGradNormCount as NativeScaler
 from sc_mbm.utils import save_model
 
@@ -128,10 +129,16 @@ def main(config):
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
 
+    early_stopper = EarlyStopping(patience=3)
+
     # create dataset and dataloader -> eegData_npy 불러옴
+    # 원본 코드
     # dataset_pretrain = eeg_pretrain_dataset(path='DreamDiffusion/data/processed/eegData_npy', roi=config.roi, patch_size=config.patch_size,
     #             transform=fmri_transform, aug_times=config.aug_times, num_sub_limit=config.num_sub_limit, 
     #             include_kam=config.include_kam, include_hcp=config.include_hcp)
+
+
+    # train_dataset for 6subject 코드 + train, validation으로 나눠서 적용
 
     train_dataset = eeg_pretrain_dataset(path='datasets/eegdata/train/eeg', roi=config.roi, patch_size=config.patch_size,
                 transform=fmri_transform, aug_times=config.aug_times, num_sub_limit=config.num_sub_limit, 
@@ -150,6 +157,7 @@ def main(config):
                 shuffle=False, pin_memory=True)
    
     print(f'Dataset size: {len(train_dataset)}\n Time len: {train_dataset.data_len}')
+
 
 
     # create model
@@ -204,6 +212,11 @@ def main(config):
 
             val_loss, val_cor = validate(model, valid_dataloader_eeg, device, config)
             print(f"Validation Loss: {val_loss:.4f} Validation Cor : {val_cor:.4f}")
+
+            if early_stopper.should_stop(model,val_loss):
+                print(f"EarlyStopping: [Epoch: {ep - early_stopper.counter}]")
+                break
+
             if logger is not None:
                 logger.log('val_loss', val_loss, step=ep)
                 logger.log('val_cor', val_cor, step=ep)

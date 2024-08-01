@@ -107,15 +107,15 @@ class eLDM:
         # self.ckp_path = os.path.join(pretrain_root, 'model.ckpt')
 
         # 여기다가 stable diffusion ckpt 들어감.
-        self.ckp_path = 'pretrains/models/v1-5-pruned.ckpt'
-        self.config_path = os.path.join('pretrains/models/config15.yaml')
+        self.ckp_path = '/Data/summer24/DreamDiffusion/pretrains/models/v1-5-pruned.ckpt'
+        self.config_path = os.path.join('/Data/summer24/DreamDiffusion/pretrains/models/config15.yaml')
         config = OmegaConf.load(self.config_path)
         config.model.params.unet_config.params.use_time_cond = use_time_cond
         config.model.params.unet_config.params.global_pool = global_pool
 
         self.cond_dim = config.model.params.unet_config.params.context_dim
 
-        print(config.model.target)
+        # print(config.model.target)
 
         model = instantiate_from_config(config.model)
         # pl_sd = torch.load(self.ckp_path, map_location="cpu")['state_dict']
@@ -212,7 +212,7 @@ class eLDM:
                 if limit is not None:
                     if count >= limit:
                         break
-                print(item)
+                # print(item)
                 latent = item['eeg']
                 gt_image = rearrange(item['image'], 'h w c -> 1 c h w') # h w c
                 print(f"rendering {num_samples} examples in {ddim_steps} steps.")

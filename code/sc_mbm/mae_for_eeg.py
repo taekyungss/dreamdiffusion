@@ -45,7 +45,6 @@ class MAEforEEG(nn.Module):
                  mlp_ratio=2., norm_layer=nn.LayerNorm, focus_range=None, focus_rate=None, img_recon_weight=1.0,
                  use_nature_img_loss=False):
         super().__init__()
-
         # --------------------------------------------------------------------------
         # MAE encoder specifics
         self.patch_embed = PatchEmbed1D(time_len, patch_size, in_chans, embed_dim)
@@ -67,11 +66,8 @@ class MAEforEEG(nn.Module):
         # --------------------------------------------------------------------------
         # MAE decoder specifics
         self.decoder_embed = nn.Linear(embed_dim, decoder_embed_dim, bias=True)
-
         self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
-
         self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, decoder_embed_dim), requires_grad=False)  # fixed sin-cos embedding
-
         self.decoder_blocks = nn.ModuleList([
             Block(decoder_embed_dim, decoder_num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer) #yongju, proj_drop=0.15, attn_drop=0.15)
             for i in range(decoder_depth)])
@@ -235,37 +231,23 @@ class MAEforEEG(nn.Module):
         return x, mask, ids_restore
 
     def forward_decoder(self, x, ids_restore = None):
-        # embed tokens
         x = self.decoder_embed(x)
-        # print('decoder embed')
-        # print(x.shape)
-        # append mask tokens to sequence
         mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], 1)
         x_ = torch.cat([x[:, 1:, :], mask_tokens], dim=1)  # no cls token
-        # x_ = torch.cat([x, mask_tokens], dim=1)  # no cls token
         x_ = torch.gather(x_, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle
         x = torch.cat([x[:, :1, :], x_], dim=1)  # append cls token
-        # x = x_
-        # add pos embed
         x = x + self.decoder_pos_embed
-        # x = x + self.decoder_pos_embed[:, 1:, :]
 
         # apply Transformer blocks
         for blk in self.decoder_blocks:
             x = blk(x)
         x = self.decoder_norm(x)
-        # print(x.shape)
-        # predictor projection
         x = self.decoder_pred(x)
-        # print(x.shape)
-
-        # remove cls token
         x = x[:, 1:, :]
 
         return x
 
     def forward_nature_img_decoder(self, x, ids_restore):
-        # embed tokens
         x = self.nature_img_decoder_embed(x)
 
         # append mask tokens to sequence
@@ -273,8 +255,6 @@ class MAEforEEG(nn.Module):
         x_ = torch.cat([x[:, 1:, :], mask_tokens], dim=1)  # no cls token
         x_ = torch.gather(x_, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle
         x = torch.cat([x[:, :1, :], x_], dim=1)  # append cls token
-
-        # add pos embed
         x = x + self.nature_img_decoder_pos_embed
 
         # apply Transformer blocks
@@ -283,8 +263,6 @@ class MAEforEEG(nn.Module):
         x = self.nature_img_decoder_norm(x)
         # remove cls token
         x = x[:, 1:, :]
-        # predictor projection
-        # x = x.mean(dim=1, keepdim=True)
         x = self.nature_img_decoder_pred(x)
         x = x.view(x.shape[0], 512, 28, 28)
 
@@ -318,13 +296,6 @@ class MAEforEEG(nn.Module):
     def forward(self, imgs, img_features=None, valid_idx=None, mask_ratio=0.75):
         # latent = self.forward_encoder(imgs, mask_ratio)
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
-            # print(x)
-        # print(latent.shape)
-        # # print(mask)
-        # print(mask.shape)
-        # # print(ids_restore)
-        # print(ids_restore.shape)
-
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p]
         # pred = self.forward_decoder(latent)  # [N, L, p]
         # pred = pred

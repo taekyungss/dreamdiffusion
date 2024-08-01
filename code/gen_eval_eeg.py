@@ -9,8 +9,6 @@ import io
 import wandb
 import datetime
 import argparse
-
-
 from config import Config_Generative_Model
 from dataset import create_EEG_dataset
 from dc_ldm.ldm_for_eeg import eLDM
@@ -64,16 +62,15 @@ if __name__ == '__main__':
     args = args.parse_args()
     root = args.root
     target = args.dataset
-
+    torch.manual_seed(42)
     sd = torch.load(args.model_path, map_location='cpu')
     config = sd['config']
     print(config)
     # update paths
     config.root_path = root
-    config.pretrain_mbm_path = 'DreamDiffuion/results/eeg_pretrain/11-07-2024-07-07-28/checkpoints/checkpoint.pth'
-    config.pretrain_gm_path = 'exps/results/generation/12-07-2024-00-49-39/checkpoint_eLDM.pth'
-    config.eeg_signals_path = "datasets/eeg_5_95_std.pth"
-    print(config.__dict__)
+    config.pretrain_mbm_path = '/Data/summer24/DreamDiffusion/checkpoint-eeg-500 (1).pth'
+    config.pretrain_gm_path = '/Data/summer24/DreamDiffusion/checkpoint.pth'
+    config.eeg_signals_path = "/Data/summer24/DreamDiffusion/datasets/eeg_5_95_std.pth"
 
     output_path = os.path.join(config.root_path, 'results', 'eval',  
                     '%s'%(datetime.datetime.now().strftime("%d-%m-%Y-%H-%M-%S")))
@@ -94,7 +91,7 @@ if __name__ == '__main__':
     ])
 
     
-    splits_path = "datasets/block_splits_by_image_single.pth"
+    splits_path = "/Data/summer24/DreamDiffusion/datasets/block_splits_by_image_single.pth"
     dataset_train, dataset_test = create_EEG_dataset(eeg_signals_path = config.eeg_signals_path, splits_path = splits_path, 
                 image_transform=[img_transform_train, img_transform_test], subject = 6)
     num_voxels = dataset_test.dataset.data_len
@@ -116,7 +113,7 @@ if __name__ == '__main__':
     state = sd['state']
     os.makedirs(output_path, exist_ok=True)
     grid, _ = generative_model.generate(dataset_train, config.num_samples, 
-                config.ddim_steps, config.HW, 10) # generate 10 instances
+                config.ddim_steps, config.HW, 3) # generate 10 instances
     grid_imgs = Image.fromarray(grid.astype(np.uint8))
     
     grid_imgs.save(os.path.join(output_path, f'./samples_train.png'))
