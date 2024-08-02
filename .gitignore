@@ -11,7 +11,8 @@ datasets/
 data/
 pretrains/
 processed/
-
+DreamDiffuion/results/
+exps/
 
 # C extensions
 *.so

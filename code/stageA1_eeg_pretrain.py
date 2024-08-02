@@ -115,8 +115,6 @@ def main(config):
     # Initialize process group for distributed training
     torch.cuda.set_device(local_rank)
     torch.distributed.init_process_group(backend='nccl', init_method='env://')
-    
-    config.local_rank = local_rank
     output_path = os.path.join(config.root_path, 'results', 'eeg_pretrain',  '%s'%(datetime.datetime.now().strftime("%d-%m-%Y-%H-%M-%S")))
     config.output_path = output_path
     logger = wandb_logger(config) if local_rank == 0 else None
@@ -125,7 +123,9 @@ def main(config):
         os.makedirs(output_path, exist_ok=True)
         create_readme(config, output_path)
     
-    device = torch.device(f'cuda:{local_rank}')
+    # torch.cuda.set_device(local_rank)
+    # device = torch.device(f'cuda:{local_rank}')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
 
