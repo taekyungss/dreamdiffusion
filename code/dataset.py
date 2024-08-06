@@ -653,13 +653,16 @@ class EEGDataset(Dataset):
         # return eeg, label
 
 
+# train -> single / train_data -> multi
 class EEGDataset_subject(Dataset):
     def __init__(self, eeg_signals_path, mode="train"):
         loaded = torch.load(eeg_signals_path)
         if mode == "train":
-            self.dataset = loaded['train']
+            # self.dataset = loaded['train']
+            self.dataset = loaded['train_data']
         elif mode == "val":
-            self.dataset = loaded['val']
+            # self.dataset = loaded['val']
+            self.dataset = loaded['val_data']
         else:
             self.dataset = loaded
 

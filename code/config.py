@@ -75,7 +75,7 @@ class Config_MBM_finetune(Config_MBM_finetune):
         self.min_lr = 0.
 
         # distributed training
-        self.local_rank = 0
+        self.local_rank = 0,1
 
         
 
@@ -89,18 +89,18 @@ class Config_MBM_EEG(Config_MAE_fMRI):
         self.root_path = '../DreamDiffusion/'
         self.eeg_signals_path = os.path.join(self.root_path, 'datasets/eeg_5_95_std.pth')
         self.crop_ratio = 0.2
-        self.lr = 1e-6
+        self.lr = 1e-5
         self.min_lr = 0.
         self.weight_decay = 0.15
         self.num_epoch = 500
         self.warmup_epochs = 40
-        self.batch_size = 64
+        self.batch_size = 128
         self.clip_grad = 0.8
         self.num_classes = 40
 
         # Model Parameters
         self.mask_ratio = 0.75
-        self.patch_size = 4 #  1
+        self.patch_size = 4 #  1s
         self.embed_dim = 1024 #256 # has to be a multiple of num_heads -> 원래 dimension은 128차원 -> num_heads =8 -> 128*8 = 1024
         self.decoder_embed_dim = 512 #128
         self.depth = 12

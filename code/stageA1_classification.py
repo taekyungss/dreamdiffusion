@@ -13,7 +13,7 @@ import wandb
 import copy
 # from sklearn.manifold import TSNE
 from config import Config_MBM_EEG
-from dataset import EEGDataset_subject
+from dataset import EEGDataset_subject, eeg_pretrain_dataset
 from sc_mbm.mae_for_eeg_2 import MAEforEEG
 from sc_mbm.trainer import train_one_epoch, validate
 from sc_mbm.trainer import EarlyStopping
@@ -27,7 +27,7 @@ os.environ['WANDB_DIR'] = "."
 class wandb_logger:
     def __init__(self, config):
         wandb.init(
-                    project="dreamdiffusion",
+                    project="dreamdiffusion exp1",
                     anonymous="allow",
                     group='stageA_sc-mbm',
                     config=config,
@@ -89,7 +89,9 @@ def get_args_parser():
     
     # distributed training parameters
     parser.add_argument('--local_rank', type=int)
-                        
+
+    # (single / multi) object
+    parser.add_argument('--subject', type =str, default="multi")
     return parser
 
 def create_readme(config, path):
@@ -113,8 +115,8 @@ def main(config):
     local_rank = config.local_rank
 
     # Initialize process group for distributed training
-    torch.cuda.set_device(local_rank)
     torch.distributed.init_process_group(backend='nccl', init_method='env://')
+    torch.cuda.set_device(local_rank)
     
     config.local_rank = local_rank
     output_path = os.path.join(config.root_path, 'results', 'eeg_pretrain',  '%s'%(datetime.datetime.now().strftime("%d-%m-%Y-%H-%M-%S")))
@@ -129,15 +131,16 @@ def main(config):
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
 
-    early_stopper = EarlyStopping(patience=5)
+    # early_stopper = EarlyStopping(patience=10)
 
-    train_dataset = EEGDataset_subject(eeg_signals_path="/Data/summer24/DreamDiffusion/datasets/eegdata_2subject/train.pth", mode = "train")
+# # multi subject dataloader
+    train_dataset = EEGDataset_subject(eeg_signals_path="/Data/summer24/DreamDiffusion/datasets/eeg_data/train/train_dataset.pth", mode = "train")
 
     train_sampler = torch.utils.data.DistributedSampler(train_dataset, rank=local_rank)
     train_dataloader_eeg = DataLoader(train_dataset, batch_size=config.batch_size, sampler=train_sampler, 
                 shuffle=False, pin_memory=True)
 
-    valid_dataset = EEGDataset_subject(eeg_signals_path='/Data/summer24/DreamDiffusion/datasets/eegdata_2subject/val.pth', mode = "val")
+    valid_dataset = EEGDataset_subject(eeg_signals_path='/Data/summer24/DreamDiffusion/datasets/eeg_data/valid/val_dataset.pth', mode = "val")
 
     valid_sampler = torch.utils.data.DistributedSampler(valid_dataset, rank=local_rank)
     valid_dataloader_eeg = DataLoader(valid_dataset, batch_size=config.batch_size, sampler=valid_sampler, 
@@ -146,18 +149,34 @@ def main(config):
     print(f'Dataset size: {len(train_dataset)}\n Time len: {train_dataset.data_len}')
 
 
-    # create model
+# single subject (number 2) dataloader
+
+    # train_dataset = EEGDataset_subject(eeg_signals_path="/Data/summer24/DreamDiffusion/data/eegdata_2subject/train.pth", mode = "train")
+
+    # train_sampler = torch.utils.data.DistributedSampler(train_dataset, rank=local_rank)
+    # train_dataloader_eeg = DataLoader(train_dataset, batch_size=config.batch_size, sampler=train_sampler, 
+    #             shuffle=False, pin_memory=True)
+
+    # valid_dataset = EEGDataset_subject(eeg_signals_path='/Data/summer24/DreamDiffusion/data/eegdata_2subject/val.pth', mode = "val")
+
+    # valid_sampler = torch.utils.data.DistributedSampler(valid_dataset, rank=local_rank)
+    # valid_dataloader_eeg = DataLoader(valid_dataset, batch_size=config.batch_size, sampler=valid_sampler, 
+    #             shuffle=False, pin_memory=True)
+   
+    # print(f'Dataset size: {len(train_dataset)}\n Time len: {train_dataset.data_len}')
+
+    
     config.time_len=train_dataset.data_len
     model = MAEforEEG(time_len=train_dataset.data_len, patch_size=config.patch_size, embed_dim=config.embed_dim,
                     decoder_embed_dim=config.decoder_embed_dim, depth=config.depth, 
                     num_heads=config.num_heads, decoder_num_heads=config.decoder_num_heads, mlp_ratio=config.mlp_ratio,
                     focus_range=config.focus_range, focus_rate=config.focus_rate, 
-                    img_recon_weight=config.img_recon_weight, use_nature_img_loss=config.use_nature_img_loss, num_classes=config.num_classes)   
+                    img_recon_weight=config.img_recon_weight, use_nature_img_loss=config.use_nature_img_loss, num_classes=config.num_classes)
     
     model.to(device)
     model_without_ddp = model
     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-    model = DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=config.use_nature_img_loss)
+    model = DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
 
     param_groups = optim_factory.add_weight_decay(model, config.weight_decay)
     optimizer = torch.optim.AdamW(param_groups, lr=config.lr, betas=(0.9, 0.95))
@@ -192,19 +211,20 @@ def main(config):
         # if (ep % 20 == 0 or ep + 1 == config.num_epoch) and local_rank == 0: #and ep != 0
             # save models
         # if True:
-        save_model(config, ep, model_without_ddp, optimizer, loss_scaler, os.path.join(output_path,'checkpoints'))
         # plot figures
         plot_recon_figures(model, device, train_dataset, output_path, 5, config, logger, model_without_ddp)
 
-        val_loss, val_f1 = validate(model, valid_dataloader_eeg, device, config)
+        val_loss, val_f1, val_acc = validate(model, valid_dataloader_eeg, device, config)
+        save_model(config, ep, model_without_ddp, optimizer, loss_scaler, os.path.join(output_path, 'checkpoints'), val_acc)
 
-        if early_stopper.should_stop(model,val_loss):
-            print(f"EarlyStopping: [Epoch: {ep - early_stopper.counter}]")
-            break
+        # if early_stopper.should_stop(model,val_loss):
+        #     print(f"EarlyStopping: [Epoch: {ep - early_stopper.counter}]")
+        #     break
 
         if logger is not None:
             logger.log('val_loss', val_loss, step=ep)
             logger.log('val_f1', val_f1, step=ep)
+            logger.log('val_acc', val_acc, step = ep)
             
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
@@ -228,21 +248,15 @@ def plot_recon_figures(model, device, dataset, output_path, num_figures = 5, con
         sample = next(iter(dataloader))['eeg']
         sample = sample.to(device)
         _, pred, mask,output = model(sample, mask_ratio=config.mask_ratio)
-        # sample_with_mask = model_without_ddp.patchify(sample.transpose(1,2))[0].to('cpu').numpy().reshape(-1, model_without_ddp.patch_size)
         sample_with_mask = sample.to('cpu').squeeze(0)[0].numpy().reshape(-1, model_without_ddp.patch_size)
-        # pred = model_without_ddp.unpatchify(pred.transpose(1,2)).to('cpu').squeeze(0)[0].unsqueeze(0).numpy()
-        # sample = sample.to('cpu').squeeze(0)[0].unsqueeze(0).numpy()
         pred = model_without_ddp.unpatchify(pred).to('cpu').squeeze(0)[0].numpy()
-        # pred = model_without_ddp.unpatchify(model_without_ddp.patchify(sample.transpose(1,2))).to('cpu').squeeze(0)[0].numpy()
         sample = sample.to('cpu').squeeze(0)[0].numpy()
         mask = mask.to('cpu').numpy().reshape(-1)
 
         cor = np.corrcoef([pred, sample])[0,1]
 
         x_axis = np.arange(0, sample.shape[-1])
-        # groundtruth
         ax[0].plot(x_axis, sample)
-        # groundtruth with mask
         s = 0
         for x, m in zip(sample_with_mask,mask):
             if m == 0:
