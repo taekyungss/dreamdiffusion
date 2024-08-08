@@ -171,10 +171,10 @@ class Config_Generative_Model:
     def __init__(self):
         # project parameters
         self.seed = 2022
-        self.root_path = '/DreamDiffusion/'
-        self.output_path = '/DreamDiffusion/exps/'
-        self.eeg_signals_path = os.path.join( '/Data/summer24/DreamDiffusion/datasets/eeg_5_95_std.pth')
-        self.splits_path = os.path.join('/Data/summer24/DreamDiffusion/datasets/block_splits_by_image_single.pth')
+        self.root_path = '/Data/summer24/DreamDiffusion/'
+        self.output_path = '/Data/summer24/DreamDiffusion/exps/'
+        self.eeg_signals_path = os.path.join( '/Data/summer24/DreamDiffusion/data/eeg_5_95_std.pth')
+        self.splits_path = os.path.join('/Data/summer24/DreamDiffusion/data/block_splits_by_image_single.pth')
         # self.splits_path = os.path.join(self.root_path, 'datasets/block_splits_by_image_all.pth')
         self.roi = 'VC'
         self.patch_size = 4 # 16
@@ -185,7 +185,7 @@ class Config_Generative_Model:
 
         self.pretrain_gm_path = os.path.join(self.root_path, 'pretrains')
         self.dataset = 'EEG' 
-        self.pretrain_mbm_path = 'DreamDiffuion/results/eeg_pretrain/05-07-2024-15-48-16/checkpoints/checkpoint.pth'
+        self.pretrain_mbm_path = '/Data/summer24/DreamDiffusion/DreamDiffuion/results/eeg_pretrain/checkpoint_epoch_378_acc_0.5641.pth'
 
         self.img_size = 512
 

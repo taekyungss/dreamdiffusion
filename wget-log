@@ -1,11 +1,0 @@
---2024-08-02 02:06:04--  https://cloud.tsinghua.edu.cn/d/d812f7d1fc474b14bbd0/files/?p=%2FEEG-ImageNet_2.pth
-Resolving cloud.tsinghua.edu.cn (cloud.tsinghua.edu.cn)... 166.111.6.101, 2402:f000:1:406:166:111:6:101
-Connecting to cloud.tsinghua.edu.cn (cloud.tsinghua.edu.cn)|166.111.6.101|:443... connected.
-HTTP request sent, awaiting response... 200 OK
-Length: 6409 (6.3K) [text/html]
-Saving to: ‘index.html?p=%2FEEG-ImageNet_2.pth’
-
-index.html?p=%2FEEG-ImageNet_2.pth                                   0%[                                                                                                                                                                 ]       0  --.-KB/s               index.html?p=%2FEEG-ImageNet_2.pth                                 100%[================================================================================================================================================================>]   6.26K  --.-KB/s    in 0s      
-
-2024-08-02 02:06:05 (1.17 GB/s) - ‘index.html?p=%2FEEG-ImageNet_2.pth’ saved [6409/6409]
-

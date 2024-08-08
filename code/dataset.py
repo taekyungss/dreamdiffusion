@@ -534,7 +534,7 @@ class EEGDataset_r(Dataset):
     # Constructor
     def __init__(self, image_transform=identity):
 
-        self.imagesource = 'mind-vis/datasets/imageNet_images'
+        self.imagesource = '/Data/summer24/DreamDiffusion/datasets/imageNet_images'
         self.image_transform = image_transform
         self.num_voxels = 440
         self.data_len = 1024
@@ -570,7 +570,7 @@ class EEGDataset_s(Dataset):
         self.eeg = loaded['dataset']
         self.labels = loaded["labels"]
         self.images = loaded["images"]
-        self.imagesource = 'mind-vis/datasets/imageNet_images'
+        self.imagesource = '/Data/summer24/DreamDiffusion/datasets/imageNet_images'
         self.image_transform = image_transform
         self.num_voxels = 1024
         # Compute size
