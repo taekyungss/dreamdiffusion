@@ -13,6 +13,8 @@ pretrains/
 processed/
 DreamDiffuion/results/eeg_pretrain/
 exps/
+*.json
+
 
 # C extensions
 *.so
