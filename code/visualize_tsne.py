@@ -1,6 +1,6 @@
 from sc_mbm.mae_for_eeg_2 import MAEforEEG
 from config import Config_MBM_EEG
-from dataset import eeg_pretrain_dataset
+from eegtoimage.dataset import eeg_pretrain_dataset
 from stageA1_eeg_pretrain import fmri_transform
 from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt

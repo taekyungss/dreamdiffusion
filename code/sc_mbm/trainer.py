@@ -6,6 +6,7 @@ import numpy as np
 import time
 from sklearn.metrics import f1_score, accuracy_score
 import torch.nn as nn
+from mae_for_eeg_2 import freeze_weights, unfreeze_weights
 
 
 class NativeScalerWithGradNormCount:
@@ -103,10 +104,12 @@ def train_one_epoch(model, data_loader, optimizer, device, epoch,
         optimizer.zero_grad()
         criterion = nn.CrossEntropyLoss()
 
-        with torch.cuda.amp.autocast(enabled=True):
-            loss, pred, _ , output = model(samples, img_features, valid_idx=valid_idx, mask_ratio=config.mask_ratio)
-            loss = loss + criterion(output, labels.long())
+        # with torch.cuda.amp.autocast(enabled=True):
+        loss, pred, _ , output = model(samples, img_features, valid_idx=valid_idx, mask_ratio=config.mask_ratio)
+        loss = loss + criterion(output, labels.long())
         loss_value = loss.item()
+
+
 
         if not math.isfinite(loss_value):
             print(f"Loss is {loss_value}, stopping training at step {data_iter_step} epoch {epoch}")

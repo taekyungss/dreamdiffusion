@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 import pandas as pd
-from dataset import EEGDataset_subject
+from eegtoimage.dataset import EEGDataset_subject
 from sc_mbm.mae_for_eeg_2 import MAEforEEG
 from config import Config_MBM_EEG
 from stageA1_eeg_pretrain import fmri_transform

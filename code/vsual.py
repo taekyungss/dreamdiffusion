@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
 from sklearn.manifold import TSNE
 import numpy as np
-from dataset import EEGDataset_subject
+from eegtoimage.dataset import EEGDataset_subject
 from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 import torch

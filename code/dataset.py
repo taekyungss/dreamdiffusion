@@ -24,7 +24,7 @@ def pad_to_length(x, length):
     assert x.ndim == 3
     assert x.shape[-1] <= length
     if x.shape[-1] == length:
-        return x
+        return xv
 
     return np.pad(x, ((0,0),(0,0), (0, length - x.shape[-1])), 'wrap')
 

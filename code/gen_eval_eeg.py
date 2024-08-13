@@ -10,7 +10,7 @@ import wandb
 import datetime
 import argparse
 from config import Config_Generative_Model
-from dataset import create_EEG_dataset
+from eegtoimage.dataset import create_EEG_dataset
 from dc_ldm.ldm_for_eeg import eLDM
 
 def to_image(img):
