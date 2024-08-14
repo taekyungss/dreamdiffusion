@@ -1,17 +1,93 @@
 
-from torch.utils.data import Dataset
-import numpy as np
 import os
-from scipy import interpolate
-from einops import rearrange
-import json
-import csv
 import torch
-from pathlib import Path
-import torchvision.transforms as transforms
-from transformers import AutoProcessor
-from scipy.interpolate import interp1d
+import numpy as np
+
 from PIL import Image
+from torch.utils.data import Dataset
+from transformers import AutoProcessor
+import torchvision.transforms as transforms
+
+
+
+class EEGImageNetDataset(Dataset):
+    def __init__(self, args, transform=None):
+        self.dataset_dir = args.dataset_dir
+        self.transform = transform
+        loaded = torch.load(os.path.join(args.dataset_dir, "EEG-ImageNet.pth"))
+        self.labels = loaded["labels"]
+        self.images = loaded["images"]
+        if args.subject != -1:
+            chosen_data = [loaded['dataset'][i] for i in range(len(loaded['dataset'])) if
+                           loaded['dataset'][i]['subject'] == args.subject]
+        else:
+            chosen_data = loaded['dataset']
+        if args.granularity == 'coarse':
+            self.data = [i for i in chosen_data if i['granularity'] == 'coarse']
+        elif args.granularity == 'all':
+            self.data = chosen_data
+        else:
+            fine_num = int(args.granularity[-1])
+            fine_category_range = np.arange(8 * fine_num, 8 * fine_num + 8)
+            self.data = [i for i in chosen_data if
+                         i['granularity'] == 'fine' and self.labels.index(i['label']) in fine_category_range]
+
+        # 실제로 이미지가 존재하는 데이터만 남김
+        self.data = []
+        for item in chosen_data:
+            image_name = item["image"]
+            image_path = os.path.join(self.dataset_dir, "imageNet", image_name.split('_')[0], image_name)
+            if os.path.exists(image_path):  # 이미지 파일이 실제로 존재하는지 확인
+                self.data.append(item)
+
+        self.use_frequency_feat = False
+        self.frequency_feat = None
+        self.use_image_label = True
+        self.imagenet = os.path.join(args.dataset_dir, "imageNet")
+        self.processor = AutoProcessor.from_pretrained("openai/clip-vit-large-patch14")
+
+    def __getitem__(self, index):
+        if self.use_image_label:
+            path = self.data[index]["image"]
+            label_path = os.path.join(self.dataset_dir, "imageNet", path.split('_')[0], path)
+            label = None
+            try:
+                label = Image.open(label_path)
+            except FileNotFoundError:
+                return self.__getitem__(index + 1)
+            
+            image_name = self.data[index]["image"]
+            image_path = os.path.join(self.imagenet, image_name.split('_')[0], image_name)
+            image_raw = Image.open(image_path).convert('RGB')
+
+            image_raw = self.processor(images=image_raw, return_tensors="pt")
+            image_raw['pixel_values'] = image_raw['pixel_values'].squeeze(0)
+
+            if label.mode == 'L':
+                label = label.convert('RGB')
+
+            if self.transform is not None:
+                image = self.transform(image_raw['pixel_values'])
+
+            else:
+                image = image_raw['pixel_values']
+
+            label = self.labels.index(self.data[index]["label"])
+        else:
+            return None
+
+        if self.use_frequency_feat:
+            feat = self.frequency_feat[index]
+        else:
+            eeg_data = self.data[index]["eeg_data"].float()
+            feat = eeg_data[:, 40:440]
+    
+        return {'eeg': feat, 'label': label, 'image': image, 'image_raw': image_raw}
+
+
+    def __len__(self):
+        return len(self.data)
+
 
 def identity(x):
     return x
@@ -633,13 +709,10 @@ class EEGDataset(Dataset):
         f = interp1d(x, eeg)
         eeg = f(x2)
         eeg = torch.from_numpy(eeg).float()
-        ##### 2023 2 13 add preprocess
         label = torch.tensor(self.data[i]["label"]).long()
 
-        # Get label
         image_name = self.images[self.data[i]["image"]]
         image_path = os.path.join(self.imagenet, image_name.split('_')[0], image_name+'.JPEG')
-        # print(image_path)
         image_raw = Image.open(image_path).convert('RGB') 
         
         image = np.array(image_raw) / 255.0
@@ -648,8 +721,6 @@ class EEGDataset(Dataset):
 
 
         return {'eeg': eeg, 'label': label, 'image': self.image_transform(image), 'image_raw': image_raw}
-        # Return
-        # return eeg, label
 
 
 class EEGDataset_subject(Dataset):
@@ -680,60 +751,21 @@ class EEGDataset_subject(Dataset):
 
         return {'eeg': eeg, 'label': label}
 
-class Splitter:
-
-    def __init__(self, dataset, split_path, split_num=0, split_name="train", subject=4):
-        # Set EEG dataset
-        self.dataset = dataset
-        # Load split
-        loaded = torch.load(split_path)
-        self.split_idx = loaded["splits"][split_num][split_name]
-        # Filter data
-        self.split_idx = [i for i in self.split_idx if i <= len(self.dataset.data) and 450 <= self.dataset.data[i]["eeg"].size(1) <= 600]
-        # Compute size
-
-        self.size = len(self.split_idx)
-        self.num_voxels = 440
-        self.data_len = 512
-
-    # Get size
-    def __len__(self):
-        return self.size
-
-    # Get item
-    def __getitem__(self, i):
-        return self.dataset[self.split_idx[i]]
 
 
-def create_EEG_dataset(eeg_signals_path='../DreamDiffusion/datasets/eeg_5_95_std.pth', 
-            splits_path = '../DreamDiffusion/datasets/block_splits_by_image_single.pth',
-            # splits_path = '../dreamdiffusion/datasets/block_splits_by_image_all.pth',
-            image_transform=identity, subject = 0):
-    # if subject == 0:
-        # splits_path = '../dreamdiffusion/datasets/block_splits_by_image_all.pth'
-    if isinstance(image_transform, list):
-        dataset_train = EEGDataset(eeg_signals_path, image_transform[0], subject )
-        dataset_test = EEGDataset(eeg_signals_path, image_transform[1], subject)
-    else:
-        dataset_train = EEGDataset(eeg_signals_path, image_transform, subject)
-        dataset_test = EEGDataset(eeg_signals_path, image_transform, subject)
-    split_train = Splitter(dataset_train, split_path = splits_path, split_num = 0, split_name = 'train', subject= subject)
-    split_test = Splitter(dataset_test, split_path = splits_path, split_num = 0, split_name = 'test', subject = subject)
-    return (split_train, split_test)
+# class Args:
+#     dataset_dir = '/Data/summer24/data'
+#     subject = -1
+#     granularity = 'all'
 
+# args = Args()
+# if __name__=="__main__":
 
-
-
-def create_EEG_dataset_r(eeg_signals_path='../DreamDiffusion/datasets/eeg_5_95_std.pth', 
-            # splits_path = '../dreamdiffusion/datasets/block_splits_by_image_single.pth',
-            splits_path = '../DreamDiffusion/datasets/block_splits_by_image_all.pth',
-            image_transform=identity):
-    if isinstance(image_transform, list):
-        dataset_train = EEGDataset_r(eeg_signals_path, image_transform[0])
-        dataset_test = EEGDataset_r(eeg_signals_path, image_transform[1])
-    else:
-        dataset_train = EEGDataset_r(eeg_signals_path, image_transform)
-        dataset_test = EEGDataset_r(eeg_signals_path, image_transform)
-    # split_train = Splitter(dataset_train, split_path = splits_path, split_num = 0, split_name = 'train')
-    # split_test = Splitter(dataset_test, split_path = splits_path, split_num = 0, split_name = 'test')
-    return (dataset_train,dataset_test)
+#     transform = transforms.Compose([
+#         transforms.Resize(256), 
+#         transforms.CenterCrop(224),
+#         transforms.ToTensor(), 
+#         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+#     ])
+#     dataset = EEGImageNetDataset(args, transform) 
+#     print(len(dataset))

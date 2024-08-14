@@ -441,3 +441,17 @@ class mapping(nn.Module):
         x = x.squeeze(1)
         x = self.fc(x)
         return x
+
+
+def freeze_weights(model, freeze=[]):
+    for name, child in model.module.named_children():
+        if name in freeze:
+            for param in child.parameters():
+                param.requires_grad = False
+
+
+def unfreeze_weights(model, freeze=[]):
+    for name, child in model.module.named_children():
+        if name in freeze:
+            for param in child.parameters():
+                param.requires_grad = True

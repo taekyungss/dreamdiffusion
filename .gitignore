@@ -11,13 +11,16 @@ datasets/
 data/
 pretrains/
 processed/
+DreamDiffuion/results/eeg_pretrain/
+exps/
+*.json
 
+/Data/summer24/DreamDiffusion/code/processed
+wandb/
 
 # C extensions
 *.so
 *.wandb
-*.png
-*.md
 
 # Distribution / packaging
 .Python

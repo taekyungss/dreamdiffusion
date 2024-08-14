@@ -4,8 +4,14 @@ import sc_mbm.utils as ut
 from torch._six import inf
 import numpy as np
 import time
+<<<<<<< HEAD
+from sklearn.metrics import f1_score, accuracy_score
+import torch.nn as nn
+from mae_for_eeg_2 import freeze_weights, unfreeze_weights
+=======
 from sklearn.metrics import f1_score
 import torch.nn as nn
+>>>>>>> f83336c493fc7ab4824f264a2cab7599cd95f873
 
 
 class NativeScalerWithGradNormCount:
@@ -64,6 +70,16 @@ def unpatchify(self, x):
 
 
 
+<<<<<<< HEAD
+# def compute_f1_score(output, labels):
+#     _, preds = torch.max(output, 1)
+#     preds = preds.cpu().numpy()
+#     labels = labels.cpu().numpy()
+#     return f1_score(labels, preds, average='weighted')
+
+
+
+=======
 def compute_f1_score(output, labels):
     _, preds = torch.max(output, 1)
     preds = preds.cpu().numpy()
@@ -72,13 +88,18 @@ def compute_f1_score(output, labels):
 
 
 
+>>>>>>> f83336c493fc7ab4824f264a2cab7599cd95f873
 def train_one_epoch(model, data_loader, optimizer, device, epoch, 
                         loss_scaler, log_writer=None, config=None, start_time=None, model_without_ddp=None, 
                         img_feature_extractor=None, preprocess=None):
     model.train(True)
     optimizer.zero_grad()
     total_loss = []
+<<<<<<< HEAD
+    total_cor = []
+=======
     # total_cor = []
+>>>>>>> f83336c493fc7ab4824f264a2cab7599cd95f873
     total_f1=[]
     accum_iter = config.accum_iter
 
@@ -103,17 +124,33 @@ def train_one_epoch(model, data_loader, optimizer, device, epoch,
         optimizer.zero_grad()
         criterion = nn.CrossEntropyLoss()
 
+<<<<<<< HEAD
+        # with torch.cuda.amp.autocast(enabled=True):
+        loss, pred, _ , output = model(samples, img_features, valid_idx=valid_idx, mask_ratio=config.mask_ratio)
+        loss = loss + criterion(output, labels.long())
+=======
         with torch.cuda.amp.autocast(enabled=True):
             loss, pred, _ , output = model(samples, img_features, valid_idx=valid_idx, mask_ratio=config.mask_ratio)
             loss = loss + criterion(output, labels.long())
+>>>>>>> f83336c493fc7ab4824f264a2cab7599cd95f873
         loss_value = loss.item()
+
+
 
         if not math.isfinite(loss_value):
             print(f"Loss is {loss_value}, stopping training at step {data_iter_step} epoch {epoch}")
             sys.exit(1)
 
+<<<<<<< HEAD
+        _, preds = torch.max(output, 1)
+        preds = preds.cpu().numpy()
+        labels = labels.cpu().numpy()
+        
+        f1 = f1_score(labels, preds, average='weighted')
+=======
         
         f1 = compute_f1_score(output,labels)
+>>>>>>> f83336c493fc7ab4824f264a2cab7599cd95f873
         total_f1.append(f1)
         # loss /= accum_iter
         loss_scaler(loss, optimizer, parameters=model.parameters(), clip_grad=config.clip_grad)
@@ -125,7 +162,11 @@ def train_one_epoch(model, data_loader, optimizer, device, epoch,
         pred = model_without_ddp.unpatchify(pred)
 
         # definiton of cor : 상관계수 계산 -> 우리가 하고 있는게 eeg data를 masking해서 원본 신호처럼 강건하게 reconstruction 하는거니까!
+<<<<<<< HEAD
+        cor = torch.mean(torch.tensor([torch.corrcoef(torch.cat([p[0].unsqueeze(0), s[0].unsqueeze(0)],axis=0))[0,1] for p, s in zip(pred, samples)])).item()
+=======
         # cor = torch.mean(torch.tensor([torch.corrcoef(torch.cat([p[0].unsqueeze(0), s[0].unsqueeze(0)],axis=0))[0,1] for p, s in zip(pred, samples)])).item()
+>>>>>>> f83336c493fc7ab4824f264a2cab7599cd95f873
         
         optimizer.zero_grad()
 
@@ -140,7 +181,11 @@ def train_one_epoch(model, data_loader, optimizer, device, epoch,
         lr = optimizer.param_groups[0]["lr"]
         log_writer.log('train_loss_step', np.mean(total_loss), step=epoch)
         log_writer.log('lr', lr, step=epoch)
+<<<<<<< HEAD
+        log_writer.log('cor', np.mean(total_cor), step=epoch)
+=======
         # log_writer.log('cor', np.mean(total_cor), step=epoch)
+>>>>>>> f83336c493fc7ab4824f264a2cab7599cd95f873
         log_writer.log('f1_score', np.mean(total_f1), step=epoch)
         if start_time is not None:
             log_writer.log('time (min)', (time.time() - start_time)/60.0, step=epoch)
@@ -158,6 +203,10 @@ def validate(model, dataloader, device, config, model_without_ddp=None, log_writ
     model.eval()
     total_loss = []
     total_f1 = []
+<<<<<<< HEAD
+    total_acc = []
+=======
+>>>>>>> f83336c493fc7ab4824f264a2cab7599cd95f873
     num_samples = 0
 
     with torch.no_grad():
@@ -170,7 +219,35 @@ def validate(model, dataloader, device, config, model_without_ddp=None, log_writ
                 loss, pred, _ , output = model(sample, mask_ratio=config.mask_ratio)
                 loss = loss + criterion(output, labels.long())
             loss_value = loss.item()
+        
+            _, preds = torch.max(output, 1)
+            preds = preds.cpu().numpy()
+            labels = labels.cpu().numpy()
 
+            f1 = f1_score(preds, labels, average='weighted')
+            acc = accuracy_score(preds, labels)
+
+<<<<<<< HEAD
+            total_f1.append(f1)
+            total_acc.append(acc)
+            num_samples += 1
+
+            print('valid_loss_step:', loss_value)
+
+        if log_writer is not None:
+            log_writer.log('valid_loss_step', np.mean(total_loss), step=num_samples)
+            log_writer.log('f1_score', np.mean(total_f1), step=num_samples)
+            log_writer.log('accuracy', np.mean(total_acc), step=num_samples)
+        total_loss.append(loss_value)
+
+    avg_loss = np.mean(total_loss)
+    max_f1 = np.max(total_f1)
+    max_acc = np.max(total_acc)
+
+    if config.local_rank == 0:        
+        print(f'valid_loss_step: {avg_loss}, val_f1_score: {max_f1}, max_accuracy : {max_acc}')
+    return avg_loss, max_f1, max_acc
+=======
             f1 = compute_f1_score(output, labels)
             total_f1.append(f1)
             num_samples += 1
@@ -188,6 +265,7 @@ def validate(model, dataloader, device, config, model_without_ddp=None, log_writ
     if config.local_rank == 0:        
         print(f'valid_loss_step: {avg_loss}, val_f1_score: {avg_f1}')
     return avg_loss, avg_f1
+>>>>>>> f83336c493fc7ab4824f264a2cab7599cd95f873
 
 
 
