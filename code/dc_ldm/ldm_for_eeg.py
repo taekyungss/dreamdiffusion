@@ -13,12 +13,12 @@ from torchvision.utils import make_grid
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 from sc_mbm.mae_for_eeg import eeg_encoder, classify_network, mapping 
+from network import EEGFeatNet
 from PIL import Image
 
 
-def create_model_from_config(config, num_voxels, global_pool):
-    model = eeg_encoder(time_len=num_voxels, patch_size=config.patch_size, embed_dim=config.embed_dim,
-                depth=config.depth, num_heads=config.num_heads, mlp_ratio=config.mlp_ratio, global_pool=global_pool) 
+def create_model_from_config(n_classes=67, in_channels=62, n_features=62, projection_dim=128, num_layers=1):
+    model = EEGFeatNet(n_classes=67, in_channels=62, n_features=62, projection_dim=128, num_layers=1) 
     return model
 
 def contrastive_loss(logits, dim):
@@ -35,36 +35,29 @@ class cond_stage_model(nn.Module):
         super().__init__()
         # prepare pretrained fmri mae 
         if metafile is not None:
-            model = create_model_from_config(metafile['config'], num_voxels, global_pool)
-            model.load_checkpoint(metafile['model'])
+            model = create_model_from_config(n_classes=67, in_channels=62, n_features=62, projection_dim=128, num_layers=1)
+            # model = EEGFeatNet(n_classes=67, in_channels=62, n_features=62, projection_dim=128, num_layers=1)
+            model.load_checkpoint(metafile['model_state_dict'])
         else:
-            model = eeg_encoder(time_len=num_voxels, global_pool=global_pool)
-        self.mae = model
-        if clip_tune:
-            self.mapping = mapping()
-        if cls_tune:
-            self.cls_net = classify_network()
+            model = EEGFeatNet(n_classes=67, in_channels=62, n_features=62, projection_dim=128, num_layers=1)
+            # n_classes=67, in_channels=62, n_features=62, projection_dim=128, num_layers=1
+        # self.mae = model
+        # if clip_tune:
+        #     self.mapping = mapping()
+        # if cls_tune:
+        #     self.cls_net = classify_network()
 
-        self.fmri_seq_len = model.num_patches
-        self.fmri_latent_dim = model.embed_dim
-        if global_pool == False:
-            self.channel_mapper = nn.Sequential(
-                nn.Conv1d(self.fmri_seq_len, self.fmri_seq_len // 2, 1, bias=True),
-                nn.Conv1d(self.fmri_seq_len // 2, 77, 1, bias=True)
-            )
-        self.dim_mapper = nn.Linear(self.fmri_latent_dim, cond_dim, bias=True)
-        self.global_pool = global_pool
+        # self.fmri_seq_len = model.num_patches
+        # self.fmri_latent_dim = model.embed_dim
+        # if global_pool == False:
+        #     self.channel_mapper = nn.Sequential(
+        #         nn.Conv1d(self.fmri_seq_len, self.fmri_seq_len // 2, 1, bias=True),
+        #         nn.Conv1d(self.fmri_seq_len // 2, 77, 1, bias=True)
+        #     )
+        # self.dim_mapper = nn.Linear(self.fmri_latent_dim, cond_dim, bias=True)
+        # self.global_pool = global_pool
 
         # self.image_embedder = FrozenImageEmbedder()
-
-    # def forward(self, x):
-    #     # n, c, w = x.shape
-    #     latent_crossattn = self.mae(x)
-    #     if self.global_pool == False:
-    #         latent_crossattn = self.channel_mapper(latent_crossattn)
-    #     latent_crossattn = self.dim_mapper(latent_crossattn)
-    #     out = latent_crossattn
-    #     return out
 
     def forward(self, x):
         # n, c, w = x.shape
@@ -139,7 +132,7 @@ class eLDM:
 
         self.ldm_config = config
         self.pretrain_root = pretrain_root
-        self.fmri_latent_dim = model.cond_stage_model.fmri_latent_dim
+        # self.fmri_latent_dim = model.cond_stage_model.fmri_latent_dim
         self.metafile = metafile
         self.temperature=temperature
 

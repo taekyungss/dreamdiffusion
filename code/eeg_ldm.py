@@ -133,9 +133,9 @@ def main(config):
     if config.dataset == 'EEG':
         dataset = EEGImageNetDataset(args, transform=None)
 
-        print("Total dataset: ", len(dataset))
-        train_index = np.array([i for i in range(len(dataset)) if i % 50 < 30])
-        test_index = np.array([i for i in range(len(dataset)) if i % 50 > 29])
+        print("Total dataset: ", len(dataset.data))
+        train_index = np.array([i for i in range(len(dataset.data)) if i % 50 < 30])
+        test_index = np.array([i for i in range(len(dataset.data)) if i % 50 > 29])
 
         train_subset = Subset(dataset, train_index)
         test_subset = Subset(dataset, test_index)
@@ -146,13 +146,8 @@ def main(config):
 
     else:
         raise NotImplementedError
-    # print(num_voxels)
 
-    # prepare pretrained mbm 
-    # Mask-Based Modeling
     pretrain_latent = torch.load(config.pretrain_latent_path, map_location='cpu')
-    # print('pretrain_mbm_metafile',pretrain_mbm_metafile)
-
 
     # create generateive model
     generative_model = eLDM(pretrain_latent, num_voxels,

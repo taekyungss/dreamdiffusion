@@ -73,6 +73,7 @@ class EEGImageNetDataset(Dataset):
             label = self.labels.index(self.data[index]["label"])
             image = None
 
+
 def identity(x):
     return x
 def pad_to_patch_size(x, patch_size):
@@ -742,23 +743,27 @@ class EEGDataset_subject(Dataset):
 
 class Splitter:
 
-        if self.use_frequency_feat:
-            feat = self.frequency_feat[index]
-        else:
-            eeg_data = self.data[index]["eeg_data"].float()
-            feat = eeg_data[:, 40:440]
-    
-        return {'eeg': feat, 'label': label, 'image': self.transform(image), 'image_raw': image_raw}
+    def __init__(self, dataset, split_path, split_num=0, split_name="train", subject=4):
+        # Set EEG dataset
+        self.dataset = dataset
+        # Load split
+        loaded = torch.load(split_path)
+        self.split_idx = loaded["splits"][split_num][split_name]
+        # Filter data
+        self.split_idx = [i for i in self.split_idx if i <= len(self.dataset.data) and 450 <= self.dataset.data[i]["eeg"].size(1) <= 600]
+        # Compute size
 
+        self.size = len(self.split_idx)
+        self.num_voxels = 440
+        self.data_len = 512
 
+    # Get size
     def __len__(self):
-        return len(self.data)
+        return self.size
 
-    def add_frequency_feat(self, feat):
-        if len(feat) == len(self.data):
-            self.frequency_feat = torch.from_numpy(feat).float()
-        else:
-            raise ValueError("Frequency features must have same length")
+    # Get item
+    def __getitem__(self, i):
+        return self.dataset[self.split_idx[i]]
 
 
 # class Args:
