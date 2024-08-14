@@ -76,7 +76,42 @@ class Config_MBM_finetune(Config_MBM_finetune):
 
         # distributed training
         self.local_rank = 0,1
+        self.use_nature_img_loss = False
+        self.img_recon_weight = 0.5
+        self.focus_range = None # [0, 1500] # None to disable it
+        self.focus_rate = 0.6
 
+        # distributed training
+        self.local_rank = 0
+
+class Config_MBM_finetune(Config_MBM_finetune):
+    def __init__(self):
+        
+        # Project setting
+        self.root_path = '.'
+        self.output_path = self.root_path
+        self.kam_path = os.path.join(self.root_path, 'data/Kamitani/npz')
+        self.bold5000_path = os.path.join(self.root_path, 'data/BOLD5000')
+        self.dataset = 'GOD' # GOD  or BOLD5000
+        self.pretrain_mbm_path = os.path.join(self.root_path, f'pretrains/{self.dataset}/fmri_encoder.pth') 
+
+        self.include_nonavg_test = True
+        self.kam_subs = ['sbj_3']
+        self.bold5000_subs = ['CSI1']
+
+        # Training Parameters
+        self.lr = 5.3e-5
+        self.weight_decay = 0.05
+        self.num_epoch = 15
+        self.batch_size = 16 if self.dataset == 'GOD' else 4 
+        self.mask_ratio = 0.75 
+        self.accum_iter = 1
+        self.clip_grad = 0.8
+        self.warmup_epochs = 2
+        self.min_lr = 0.
+
+        # distributed training
+        self.local_rank = 0
         
 
 # 수정한 코드
@@ -101,6 +136,7 @@ class Config_MBM_EEG(Config_MAE_fMRI):
         # Model Parameters
         self.mask_ratio = 0.75
         self.patch_size = 4 #  1s
+
         self.embed_dim = 1024 #256 # has to be a multiple of num_heads -> 원래 dimension은 128차원 -> num_heads =8 -> 128*8 = 1024
         self.decoder_embed_dim = 512 #128
         self.depth = 12

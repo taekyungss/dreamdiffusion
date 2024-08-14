@@ -7,13 +7,13 @@ from matplotlib import pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
 from sklearn.manifold import TSNE
 import numpy as np
-
 import torch
 import torch.nn as nn
 
 config = Config_MBM_EEG()
 local_rank = config.local_rank
 device = torch.device(f'cuda:{local_rank}')
+
 mode = "train"
 types = "label"
 
@@ -33,6 +33,7 @@ model = MAEforEEG(time_len=train_dataset.data_len, patch_size=config.patch_size,
                 img_recon_weight=config.img_recon_weight, use_nature_img_loss=config.use_nature_img_loss, num_classes=config.num_classes)   
 
 checkpoint = torch.load("/Data/summer24/DreamDiffusion/DreamDiffuion/results/eeg_pretrain/30-07-2024-01-30-34/checkpoints/checkpoint.pth", map_location='cpu')  # Modify the path to your checkpoint
+
 model.load_state_dict(checkpoint['model'], strict=False)
 model.eval()
 all_latents = []
@@ -42,6 +43,7 @@ df = pd.read_csv(f"/Data/summer24/DreamDiffusion/datasets/eegdata/{mode}/{types}
 with torch.no_grad():
     all_latents = []
     for iter, data_dict in enumerate(train_dataloader_eeg):
+
         sample = data_dict['eeg']
         latent, _, _ = model.forward_encoder(sample, mask_ratio=config.mask_ratio)
         latent = latent[:, 1:, :]  # Remove the cls token

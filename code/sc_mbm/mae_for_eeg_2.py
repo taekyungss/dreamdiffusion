@@ -442,6 +442,7 @@ class mapping(nn.Module):
         x = self.fc(x)
         return x
 
+
 def freeze_weights(model, freeze=[]):
     for name, child in model.module.named_children():
         if name in freeze:

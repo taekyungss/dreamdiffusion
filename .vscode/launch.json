@@ -17,6 +17,7 @@
             ],
             "console": "integratedTerminal",
             "args": ["--dataset","EEG", "--num_epoch", "300", "--batch_size" ,"4", "--pretrain_latent_path", "/Data/summer24/DreamDiffusion/stage1 weight/eegfeat_all_0.03268612132352941.pth"],
+
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "7"
                 "CUDA_VISIBLE_DEVICES": "1,2"
