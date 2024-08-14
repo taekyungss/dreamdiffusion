@@ -186,7 +186,7 @@ class Config_Generative_Model:
 
         self.pretrain_gm_path = os.path.join(self.root_path, 'pretrains')
         self.dataset = 'EEG' 
-        self.pretrain_mbm_path = 'DreamDiffuion/results/eeg_pretrain/05-07-2024-15-48-16/checkpoints/checkpoint.pth'
+        self.pretrain_latent_path = '/Data/summer24/DreamDiffusion/stage1 weight/eegfeat_all_0.03268612132352941.pth'
 
         self.img_size = 512
 

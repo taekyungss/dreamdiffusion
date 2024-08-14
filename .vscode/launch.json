@@ -5,6 +5,7 @@
     "version": "0.2.0",
     "configurations": [
 
+
         {
             "name": "Python Debugger: Current File",
             "type": "debugpy",
@@ -15,11 +16,13 @@
                 "--nproc_per_node=2"
             ],
             "console": "integratedTerminal",
-            // "args": ["--dataset","EEG", "--model_path", "exps/results/generation/12-07-2024-00-49-39/checkpoint_eLDM.pth"],
+            "args": ["--dataset","EEG", "--num_epoch", "300", "--batch_size" ,"4", "--pretrain_latent_path", "/Data/summer24/DreamDiffusion/stage1 weight/eegfeat_all_0.03268612132352941.pth"],
             "env": {
                 // "CUDA_VISIBLE_DEVICES": "7"
-                "CUDA_VISIBLE_DEVICES": "0,1"
+                "CUDA_VISIBLE_DEVICES": "1,2"
             }
         }
     ]
 }
+
+// --dataset EEG  --num_epoch 300 --batch_size 4 --pretrain_mbm_path /Data/summer24/DreamDiffusion/DreamDiffuion/results/eeg_pretrain/06-08-2024-08-35-12/checkpoints/checkpoint_epoch_210_acc_0.4675.pth

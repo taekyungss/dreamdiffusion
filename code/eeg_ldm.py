@@ -13,9 +13,9 @@ import copy
 import io
 from torch.nn import Identity
 import lpips
-
+from torch.utils.data import DataLoader, Subset
 from config import Config_Generative_Model
-from eegtoimage.dataset import  create_EEG_dataset
+from dataset import  EEGImageNetDataset
 from dc_ldm.ldm_for_eeg import eLDM
 from eval_metrics import get_similarity_metric
 
@@ -118,34 +118,31 @@ def fmri_transform(x, sparse_rate=0.2):
     x_aug[idx] = 0
     return torch.FloatTensor(x_aug)
 
+class Args:
+    dataset_dir = '/Data/summer24/data'
+    subject = -1
+    granularity = 'all'
+
+
 def main(config):
     # project setup
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
-
-    crop_pix = int(config.crop_ratio*config.img_size)
-    img_transform_train = transforms.Compose([
-        normalize,
-
-        transforms.Resize((512, 512)),
-        random_crop(config.img_size-crop_pix, p=0.5),
-
-        transforms.Resize((512, 512)),
-        channel_last
-    ])
-    img_transform_test = transforms.Compose([
-        normalize, 
-
-        transforms.Resize((512, 512)),
-        channel_last
-    ])
+    args = Args()
     if config.dataset == 'EEG':
+        dataset = EEGImageNetDataset(args, transform=None)
 
-        eeg_latents_dataset_train, eeg_latents_dataset_test = create_EEG_dataset(eeg_signals_path = config.eeg_signals_path, splits_path = config.splits_path, 
-                image_transform=[img_transform_train, img_transform_test], subject = config.subject)
-        # eeg_latents_dataset_train, eeg_latents_dataset_test = create_EEG_dataset_viz( image_transform=[img_transform_train, img_transform_test])
-        num_voxels = eeg_latents_dataset_train.data_len
+        print("Total dataset: ", len(dataset))
+        train_index = np.array([i for i in range(len(dataset)) if i % 50 < 30])
+        test_index = np.array([i for i in range(len(dataset)) if i % 50 > 29])
+
+        train_subset = Subset(dataset, train_index)
+        test_subset = Subset(dataset, test_index)
+        print("train dataset : ",len(train_subset))
+        print("test dataset : ",len(test_subset))
+
+        num_voxels = len(train_subset)
 
     else:
         raise NotImplementedError
@@ -153,12 +150,12 @@ def main(config):
 
     # prepare pretrained mbm 
     # Mask-Based Modeling
-    pretrain_mbm_metafile = torch.load(config.pretrain_mbm_path, map_location='cpu')
+    pretrain_latent = torch.load(config.pretrain_latent_path, map_location='cpu')
     # print('pretrain_mbm_metafile',pretrain_mbm_metafile)
 
 
     # create generateive model
-    generative_model = eLDM(pretrain_mbm_metafile, num_voxels,
+    generative_model = eLDM(pretrain_latent, num_voxels,
                 device=device, pretrain_root=config.pretrain_gm_path, logger=config.logger, 
                 ddim_steps=config.ddim_steps, global_pool=config.global_pool, use_time_cond=config.use_time_cond, clip_tune = config.clip_tune, cls_tune = config.cls_tune)
     
@@ -169,12 +166,12 @@ def main(config):
         print('model resumed')
     # finetune the model
     trainer = create_trainer(config.num_epoch, config.precision, config.accumulate_grad, config.logger, check_val_every_n_epoch=2)
-    generative_model.finetune(trainer, eeg_latents_dataset_train, eeg_latents_dataset_test,
+    generative_model.finetune(trainer, train_subset, test_subset,
                 config.batch_size, config.lr, config.output_path, config=config)
 
     # generate images
     # generate limited train images and generate images for subjects seperately
-    generate_images(generative_model, eeg_latents_dataset_train, eeg_latents_dataset_test, config)
+    generate_images(generative_model, train_subset, test_subset, config)
 
     return
 
@@ -183,7 +180,7 @@ def get_args_parser():
     # project parameters
     parser.add_argument('--seed', type=int)
     parser.add_argument('--root_path', type=str, default = '../dreamdiffusion/')
-    parser.add_argument('--pretrain_mbm_path', type=str)
+    parser.add_argument('--pretrain_latent_path', type=str)
     parser.add_argument('--checkpoint_path', type=str)
     parser.add_argument('--crop_ratio', type=float)
     parser.add_argument('--dataset', type=str)
