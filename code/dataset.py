@@ -32,11 +32,12 @@ class EEGImageNetDataset(Dataset):
             self.data = [i for i in chosen_data if
                          i['granularity'] == 'fine' and self.labels.index(i['label']) in fine_category_range]
 
+        # 실제로 이미지가 존재하는 데이터만 남김
         self.data = []
         for item in chosen_data:
             image_name = item["image"]
             image_path = os.path.join(self.dataset_dir, "imageNet", image_name.split('_')[0], image_name)
-            if os.path.exists(image_path):
+            if os.path.exists(image_path):  # 이미지 파일이 실제로 존재하는지 확인
                 self.data.append(item)
 
         self.use_frequency_feat = False
@@ -59,19 +60,34 @@ class EEGImageNetDataset(Dataset):
             image_path = os.path.join(self.imagenet, image_name.split('_')[0], image_name)
             image_raw = Image.open(image_path).convert('RGB')
 
-            image = image_raw
             image_raw = self.processor(images=image_raw, return_tensors="pt")
             image_raw['pixel_values'] = image_raw['pixel_values'].squeeze(0)
 
             if label.mode == 'L':
                 label = label.convert('RGB')
-            if self.transform:
-                label = self.transform(label)
+
+            if self.transform is not None:
+                image = self.transform(image_raw['pixel_values'])
+
             else:
-                label = path
-        else:
+                image = image_raw['pixel_values']
+
             label = self.labels.index(self.data[index]["label"])
-            image = None
+        else:
+            return None
+
+        if self.use_frequency_feat:
+            feat = self.frequency_feat[index]
+        else:
+            eeg_data = self.data[index]["eeg_data"].float()
+            feat = eeg_data[:, 40:440]
+    
+        return {'eeg': feat, 'label': label, 'image': image, 'image_raw': image_raw}
+
+
+    def __len__(self):
+        return len(self.data)
+
 
 def identity(x):
     return x
@@ -693,13 +709,10 @@ class EEGDataset(Dataset):
         f = interp1d(x, eeg)
         eeg = f(x2)
         eeg = torch.from_numpy(eeg).float()
-        ##### 2023 2 13 add preprocess
         label = torch.tensor(self.data[i]["label"]).long()
 
-        # Get label
         image_name = self.images[self.data[i]["image"]]
         image_path = os.path.join(self.imagenet, image_name.split('_')[0], image_name+'.JPEG')
-        # print(image_path)
         image_raw = Image.open(image_path).convert('RGB') 
         
         image = np.array(image_raw) / 255.0
@@ -708,8 +721,6 @@ class EEGDataset(Dataset):
 
 
         return {'eeg': eeg, 'label': label, 'image': self.image_transform(image), 'image_raw': image_raw}
-        # Return
-        # return eeg, label
 
 
 class EEGDataset_subject(Dataset):
@@ -740,25 +751,6 @@ class EEGDataset_subject(Dataset):
 
         return {'eeg': eeg, 'label': label}
 
-class Splitter:
-
-        if self.use_frequency_feat:
-            feat = self.frequency_feat[index]
-        else:
-            eeg_data = self.data[index]["eeg_data"].float()
-            feat = eeg_data[:, 40:440]
-    
-        return {'eeg': feat, 'label': label, 'image': self.transform(image), 'image_raw': image_raw}
-
-
-    def __len__(self):
-        return len(self.data)
-
-    def add_frequency_feat(self, feat):
-        if len(feat) == len(self.data):
-            self.frequency_feat = torch.from_numpy(feat).float()
-        else:
-            raise ValueError("Frequency features must have same length")
 
 
 # class Args:

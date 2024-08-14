@@ -13,13 +13,10 @@ from torchvision.utils import make_grid
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 from sc_mbm.mae_for_eeg import eeg_encoder, classify_network, mapping 
+from sc_mbm.network import EEGFeatNet
 from PIL import Image
 
 
-def create_model_from_config(config, num_voxels, global_pool):
-    model = eeg_encoder(time_len=num_voxels, patch_size=config.patch_size, embed_dim=config.embed_dim,
-                depth=config.depth, num_heads=config.num_heads, mlp_ratio=config.mlp_ratio, global_pool=global_pool) 
-    return model
 
 def contrastive_loss(logits, dim):
     neg_ce = torch.diag(F.log_softmax(logits, dim=dim))
@@ -30,49 +27,28 @@ def clip_loss(similarity: torch.Tensor) -> torch.Tensor:
     image_loss = contrastive_loss(similarity, dim=1)
     return (caption_loss + image_loss) / 2.0
 
+
 class cond_stage_model(nn.Module):
-    def __init__(self, metafile, num_voxels=400, cond_dim=1280, global_pool=True, clip_tune = True, cls_tune = False):
+    def __init__(self, metafile, num_voxels=400, cond_dim=1280, clip_tune = True, cls_tune = False):
         super().__init__()
-        # prepare pretrained fmri mae 
-        if metafile is not None:
-            model = create_model_from_config(metafile['config'], num_voxels, global_pool)
-            model.load_checkpoint(metafile['model'])
-        else:
-            model = eeg_encoder(time_len=num_voxels, global_pool=global_pool)
-        self.mae = model
+        # prepare pretrained eeg_encoder
+        model = EEGFeatNet(n_classes=67, in_channels=62, n_features=62, projection_dim=128, num_layers=1)
+        model.load_checkpoint(metafile['model_state_dict'])
+
+        self.encoder = model
+
         if clip_tune:
             self.mapping = mapping()
         if cls_tune:
             self.cls_net = classify_network()
 
-        self.fmri_seq_len = model.num_patches
-        self.fmri_latent_dim = model.embed_dim
-        if global_pool == False:
-            self.channel_mapper = nn.Sequential(
-                nn.Conv1d(self.fmri_seq_len, self.fmri_seq_len // 2, 1, bias=True),
-                nn.Conv1d(self.fmri_seq_len // 2, 77, 1, bias=True)
-            )
-        self.dim_mapper = nn.Linear(self.fmri_latent_dim, cond_dim, bias=True)
-        self.global_pool = global_pool
-
-        # self.image_embedder = FrozenImageEmbedder()
-
-    # def forward(self, x):
-    #     # n, c, w = x.shape
-    #     latent_crossattn = self.mae(x)
-    #     if self.global_pool == False:
-    #         latent_crossattn = self.channel_mapper(latent_crossattn)
-    #     latent_crossattn = self.dim_mapper(latent_crossattn)
-    #     out = latent_crossattn
-    #     return out
 
     def forward(self, x):
         # n, c, w = x.shape
-        latent_crossattn = self.mae(x)
+        latent_crossattn = self.encoder(x)
         latent_return = latent_crossattn
-        if self.global_pool == False:
-            latent_crossattn = self.channel_mapper(latent_crossattn)
-        latent_crossattn = self.dim_mapper(latent_crossattn)
+        # latent_crossattn = self.channel_mapper(latent_crossattn)
+        # latent_crossattn = self.dim_mapper(latent_crossattn)
         out = latent_crossattn
         return out, latent_return
 
@@ -114,14 +90,11 @@ class eLDM:
         # print(config.model.target)
 
         model = instantiate_from_config(config.model)
-        # pl_sd = torch.load(self.ckp_path, map_location="cpu")['state_dict']
-        # taetae
         pl_sd = torch.load(self.ckp_path, map_location="cpu")['state_dict']
-
         m, u = model.load_state_dict(pl_sd, strict=False)
         model.cond_stage_trainable = True
-        model.cond_stage_model = cond_stage_model(metafile, num_voxels, self.cond_dim, global_pool=global_pool, clip_tune = clip_tune,cls_tune = cls_tune)
 
+        model.cond_stage_model = cond_stage_model(metafile, num_voxels, clip_tune = clip_tune, cls_tune = cls_tune)
         model.ddim_steps = ddim_steps
         model.re_init_ema()
         if logger is not None:
@@ -139,11 +112,11 @@ class eLDM:
 
         self.ldm_config = config
         self.pretrain_root = pretrain_root
-        self.fmri_latent_dim = model.cond_stage_model.fmri_latent_dim
+        # self.fmri_latent_dim = model.cond_stage_model.fmri_latent_dim
         self.metafile = metafile
         self.temperature=temperature
 
-    def finetune(self, trainers, dataset, test_dataset, bs1, lr1,
+    def finetune(self, trainers, dataset, valid_dataset, bs1, lr1,
                 output_path, config=None):
         config.trainer = None
         config.logger = None
@@ -158,8 +131,8 @@ class eLDM:
         print(f'batch_size is: {bs1}')
 
         
-        dataloader = DataLoader(dataset, batch_size=bs1, num_workers=4, shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=bs1, num_workers=4, shuffle=False)
+        dataloader = DataLoader(dataset, batch_size=bs1, shuffle=True)
+        valid_loader = DataLoader(valid_dataset, batch_size=bs1, shuffle=True)
         self.model.unfreeze_whole_model()
         self.model.freeze_first_stage()
         # self.model.freeze_whole_model()
@@ -168,7 +141,8 @@ class eLDM:
         self.model.learning_rate = lr1
         self.model.train_cond_stage_only = True
         self.model.eval_avg = config.eval_avg
-        trainers.fit(self.model, dataloader, val_dataloaders=test_loader)
+        #  create_trainer(config.num_epoch, config.precision, config.accumulate_grad, config.logger, check_val_every_n_epoch=2)
+        trainers.fit(self.model, dataloader, val_dataloaders=valid_loader)
 
         self.model.unfreeze_whole_model()
 

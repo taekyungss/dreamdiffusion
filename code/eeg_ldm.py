@@ -133,9 +133,9 @@ def main(config):
     if config.dataset == 'EEG':
         dataset = EEGImageNetDataset(args, transform=None)
 
-        print("Total dataset: ", len(dataset))
-        train_index = np.array([i for i in range(len(dataset)) if i % 50 < 30])
-        test_index = np.array([i for i in range(len(dataset)) if i % 50 > 29])
+        print("Total dataset: ", len(dataset.data))
+        train_index = np.array([i for i in range(len(dataset.data)) if i % 50 < 30])
+        test_index = np.array([i for i in range(len(dataset.data)) if i % 50 > 29])
 
         train_subset = Subset(dataset, train_index)
         test_subset = Subset(dataset, test_index)
@@ -144,29 +144,21 @@ def main(config):
 
         num_voxels = len(train_subset)
 
-    else:
-        raise NotImplementedError
-    # print(num_voxels)
-
-    # prepare pretrained mbm 
-    # Mask-Based Modeling
-    pretrain_latent = torch.load(config.pretrain_latent_path, map_location='cpu')
-    # print('pretrain_mbm_metafile',pretrain_mbm_metafile)
-
-
-    # create generateive model
+    pretrain_latent = torch.load(config.pretrain_latent_path, map_location='cpu',weights_only=False)
     generative_model = eLDM(pretrain_latent, num_voxels,
                 device=device, pretrain_root=config.pretrain_gm_path, logger=config.logger, 
                 ddim_steps=config.ddim_steps, global_pool=config.global_pool, use_time_cond=config.use_time_cond, clip_tune = config.clip_tune, cls_tune = config.cls_tune)
     
+
     # resume training if applicable
     if config.checkpoint_path is not None:
         model_meta = torch.load(config.checkpoint_path, map_location='cpu')
         generative_model.model.load_state_dict(model_meta['model_state_dict'])
         print('model resumed')
+
     # finetune the model
     trainer = create_trainer(config.num_epoch, config.precision, config.accumulate_grad, config.logger, check_val_every_n_epoch=2)
-    generative_model.finetune(trainer, train_subset, test_subset,
+    generative_model.finetune(trainer, train_subset.dataset, test_subset.dataset,
                 config.batch_size, config.lr, config.output_path, config=config)
 
     # generate images
@@ -224,6 +216,7 @@ def create_trainer(num_epoch, precision=32, accumulate_grad_batches=2,logger=Non
             precision=precision, accumulate_grad_batches=accumulate_grad_batches,
             enable_checkpointing=False, enable_model_summary=False, gradient_clip_val=0.5,
             check_val_every_n_epoch=check_val_every_n_epoch)
+
   
 if __name__ == '__main__':
     args = get_args_parser()
@@ -231,10 +224,11 @@ if __name__ == '__main__':
     config = Config_Generative_Model()
     config = update_config(args, config)
     
+    
     if config.checkpoint_path is not None:
         model_meta = torch.load(config.checkpoint_path, map_location='cpu')
         ckp = config.checkpoint_path
-        config = model_meta['config']
+        # config = model_meta['config']
         config.checkpoint_path = ckp
         print('Resuming from checkpoint: {}'.format(config.checkpoint_path))
 

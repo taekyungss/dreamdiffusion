@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import torch
 
 class Config_MAE_fMRI: # back compatibility
     pass
@@ -189,7 +190,7 @@ class Config_EEG_finetune(Config_MBM_finetune):
         self.lr = 5.3e-5
         self.weight_decay = 0.05
         self.num_epoch = 15
-        self.batch_size = 1 if self.dataset == 'GOD' else 4 
+        self.batch_size = 128 if self.dataset == 'GOD' else 128
         self.mask_ratio = 0.5
         self.accum_iter = 1
         self.clip_grad = 0.8
@@ -218,11 +219,12 @@ class Config_Generative_Model:
         self.depth = 24
         self.num_heads = 16
         self.mlp_ratio = 1.0
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
         self.pretrain_gm_path = os.path.join(self.root_path, 'pretrains')
         self.dataset = 'EEG' 
-        self.pretrain_latent_path = '/Data/summer24/DreamDiffusion/stage1 weight/eegfeat_all_0.03268612132352941.pth'
+        self.pretrain_latent_path = 'eegtoimage/EXPERIMENT_1/bestckpt/eegfeat_all_0.9702620967741935.pth'
 
         self.img_size = 512
 
