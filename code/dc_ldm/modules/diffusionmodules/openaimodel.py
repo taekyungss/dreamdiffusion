@@ -742,7 +742,7 @@ class UNetModel(nn.Module):
             assert y.shape == (x.shape[0],)
             emb = emb + self.label_emb(y)
         if self.use_time_cond: # add time conditioning
-            c = self.time_embed_condtion(c)
+            c = self.time_embed_condtion(context)
             assert c.shape[1] == 1, f'found {c.shape}'
             emb = emb + torch.squeeze(c, dim=1)
 
