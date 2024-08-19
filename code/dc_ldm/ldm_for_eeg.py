@@ -32,13 +32,12 @@ def clip_loss(similarity: torch.Tensor) -> torch.Tensor:
 
 class cond_stage_model(nn.Module):
 
-    #         model.cond_stage_model = cond_stage_model(metafile, num_voxels, self.cond_dim, global_pool=global_pool, clip_tune = clip_tune,cls_tune = cls_tune)
+    # model.cond_stage_model = cond_stage_model(metafile, num_voxels, self.cond_dim, global_pool=global_pool, clip_tune = clip_tune,cls_tune = cls_tune)
     def __init__(self, metafile, num_voxels=440, cond_dim=1280, global_pool=True, clip_tune = True, cls_tune = False):
         super().__init__()
         # prepare pretrained fmri mae 
         if metafile is not None:
             model = create_model_from_config(metafile['config'], num_voxels, global_pool)
-        
             model.load_checkpoint(metafile['model'])
         else:
             model = eeg_encoder(time_len=num_voxels, global_pool=global_pool)
@@ -60,14 +59,7 @@ class cond_stage_model(nn.Module):
 
         # self.image_embedder = FrozenImageEmbedder()
 
-    # def forward(self, x):
-    #     # n, c, w = x.shape
-    #     latent_crossattn = self.mae(x)
-    #     if self.global_pool == False:
-    #         latent_crossattn = self.channel_mapper(latent_crossattn)
-    #     latent_crossattn = self.dim_mapper(latent_crossattn)
-    #     out = latent_crossattn
-    #     return out
+
 
     def forward(self, x):
         # n, c, w = x.shape
@@ -112,14 +104,11 @@ class eLDM:
         config = OmegaConf.load(self.config_path)
         config.model.params.unet_config.params.use_time_cond = use_time_cond
         config.model.params.unet_config.params.global_pool = global_pool
-
         self.cond_dim = config.model.params.unet_config.params.context_dim
 
         # print(config.model.target)
 
         model = instantiate_from_config(config.model)
-        # pl_sd = torch.load(self.ckp_path, map_location="cpu")['state_dict']
-        # taetae
         pl_sd = torch.load(self.ckp_path, map_location="cpu")['state_dict']
 
         m, u = model.load_state_dict(pl_sd, strict=False)
@@ -153,9 +142,7 @@ class eLDM:
         config.logger = None
         self.model.main_config = config
         self.model.output_path = output_path
-        # self.model.train_dataset = dataset
         self.model.run_full_validation_threshold = 0.15
-        # stage one: train the cond encoder with the pretrained one
 
         # # stage one: only optimize conditional encoders
         print('\n##### Stage One: only optimize conditional encoders #####')
