@@ -219,11 +219,11 @@ class Config_Generative_Model:
         self.num_heads = 16
         self.mlp_ratio = 1.0
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+        self.logger = None
 
         self.pretrain_gm_path = os.path.join(self.root_path, 'pretrains')
         self.dataset = 'EEG' 
-        self.pretrain_latent_path = '/Data/summer24/DreamDiffusion/DreamDiffuion/results/eeg_pretrain/clip_64.pth'
+        self.pretrain_mbm_path = "DreamDiffusion/stage1_weight/eegfeat_all_0.9702620967741935.pth"
 
         self.img_size = 512
 

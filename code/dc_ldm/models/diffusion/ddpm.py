@@ -358,7 +358,7 @@ class DDPM(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         self.train()
-        self.cond_stage_model.train()  ###到底是在哪里训练的
+        self.cond_stage_model.train()
         
         loss, loss_dict = self.shared_step(batch)
 
@@ -399,7 +399,8 @@ class DDPM(pl.LightningModule):
 
         # state = torch.cuda.get_rng_state()    
         with model.ema_scope():
-            for count, item in enumerate(zip(data['eeg'], data['image'])):
+            # for count, item in enumerate(zip(data['eeg'], data['image'])):
+            for count, item in enumerate(zip(data[0], data[1])):
                 if limit is not None:
                     if count >= limit:
                         break
@@ -420,7 +421,7 @@ class DDPM(pl.LightningModule):
                 gt_image = torch.clamp((gt_image+1.0)/2.0,min=0.0, max=1.0)
                 
                 all_samples.append(torch.cat([gt_image.detach().cpu(), x_samples_ddim.detach().cpu()], dim=0)) # put groundtruth at first
-        
+        # size = (batch_size, C, H, W)
         # display as grid
         grid = torch.stack(all_samples, 0)
         grid = rearrange(grid, 'n b c h w -> (n b) c h w')
