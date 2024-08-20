@@ -72,7 +72,6 @@ class Config_EEG_finetune(Config_MBM_finetune):
         self.pretrain_mbm_path = '/home/summer24/DreamDiffusion/checkpoint.pth'
         self.include_nonavg_test = True
 
-
         # Training Parameters
         self.lr = 5.3e-5
         self.weight_decay = 0.05
@@ -90,15 +89,15 @@ class Config_EEG_finetune(Config_MBM_finetune):
 
         # distributed training
         self.local_rank = 0
-        
+
 class Config_Generative_Model:
     def __init__(self):
         # project parameters
         self.seed = 2022
-        self.root_path = '../DreamDiffusion/'
-        self.output_path = '../DreamDiffusion/exps/'
-        self.eeg_signals_path = os.path.join(self.root_path, 'datasets/eeg_5_95_std.pth')
-        self.splits_path = os.path.join(self.root_path, 'datasets/block_splits_by_image_single.pth')
+        self.root_path = './DreamDiffusion/'
+        self.output_path = './DreamDiffusion/exps/'
+        self.eeg_signals_path = os.path.join(self.root_path, 'data/eeg_5_95_std.pth')
+        self.splits_path = os.path.join(self.root_path, 'data/block_splits_by_image_single.pth')
         # self.splits_path = os.path.join(self.root_path, 'datasets/block_splits_by_image_all.pth')
         self.roi = 'VC'
         self.patch_size = 4 # 16
@@ -110,7 +109,7 @@ class Config_Generative_Model:
         self.pretrain_gm_path = os.path.join(self.root_path, 'pretrains')
         
         self.dataset = 'EEG' 
-        self.pretrain_mbm_path = None
+        self.pretrain_mbm_path = "/Data/summer24/DreamDiffusion/DreamDiffuion/results/eeg_pretrain/08-08-2024-01-06-34/checkpoints/checkpoint_epoch_294_acc_0.4766.pth"
 
         self.img_size = 512
 

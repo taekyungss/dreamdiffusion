@@ -14,7 +14,7 @@ class PatchEmbed1D(nn.Module):
     """ 1 Dimensional version of data (fmri voxels) to Patch Embedding
     """
     # def __init__(self, time_len=224, patch_size=1, in_chans=14, embed_dim=256, dropout_rate=0.2):
-    def __init__(self, time_len=224, patch_size=1, in_chans=14, embed_dim=256, dropout_rate=0.2): # taekyung dropout_rate = 0.2 -> 0.4 / 모델 과적합되는것 같음
+    def __init__(self, time_len=224, patch_size=1, in_chans=128, embed_dim=256, dropout_rate=0.2): # taekyung dropout_rate = 0.2 -> 0.4 / 모델 과적합되는것 같음
         super().__init__()
         num_patches = time_len // patch_size
         self.patch_shape = patch_size
@@ -37,7 +37,7 @@ class PatchEmbed1D(nn.Module):
 class MAEforEEG(nn.Module):
     """ Masked Autoencoder with VisionTransformer backbone
     """
-    def __init__(self, time_len=1024, patch_size=4, embed_dim=1024, in_chans=14,
+    def __init__(self, time_len=1024, patch_size=4, embed_dim=1024, in_chans=128,
                  depth=24, num_heads=16, decoder_embed_dim=512,
                  decoder_depth=4, decoder_num_heads=16,
                  mlp_ratio=2., norm_layer=nn.LayerNorm, focus_range=None, focus_rate=None, img_recon_weight=1.0,
@@ -346,7 +346,7 @@ class MAEforEEG(nn.Module):
         return loss, pred, mask
 
 class eeg_encoder(nn.Module):
-    def __init__(self, time_len=1024, patch_size=4, embed_dim=2048, in_chans=14,
+    def __init__(self, time_len=1024, patch_size=4, embed_dim=2048, in_chans=128,
                  depth=24, num_heads=16, mlp_ratio=1., norm_layer=nn.LayerNorm, global_pool=False):
         super().__init__()
         self.patch_embed = PatchEmbed1D(time_len, patch_size, in_chans, embed_dim)

@@ -241,7 +241,7 @@ class EEGDataset_r(Dataset):
     # Constructor
     def __init__(self, eeg_signals_path, image_transform=identity):
 
-        self.imagenet = '/apdcephfs/share_1290939/0_public_datasets/imageNet_2012/train/'
+        self.imagenet = '/Data/summer24/DreamDiffusion/datasets/imageNet_images'
         self.image_transform = image_transform
         self.num_voxels = 440
         self.data_len = 512
@@ -277,7 +277,7 @@ class EEGDataset_s(Dataset):
         self.data = loaded['dataset']        
         self.labels = loaded["labels"]
         self.images = loaded["images"]
-        self.imagenet = '/apdcephfs/share_1290939/0_public_datasets/imageNet_2012/train/'
+        self.imagenet = '/Data/summer24/DreamDiffusion/datasets/imageNet_images'
         self.image_transform = image_transform
         self.num_voxels = 440
         # Compute size
@@ -376,7 +376,7 @@ class EEGDataset(Dataset):
         
         self.labels = loaded["labels"]
         self.images = loaded["images"]
-        self.imagenet = '/apdcephfs/share_1290939/0_public_datasets/imageNet_2012/train/'
+        self.imagenet = '/Data/summer24/DreamDiffusion/datasets/imageNet_images'
         self.image_transform = image_transform
         self.num_voxels = 440
         self.data_len = 512
