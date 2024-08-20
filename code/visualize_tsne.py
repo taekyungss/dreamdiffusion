@@ -1,6 +1,6 @@
 from sc_mbm.mae_for_eeg_2 import MAEforEEG
 from config import Config_MBM_EEG
-from eegtoimage.dataset import eeg_pretrain_dataset
+from dataset import eeg_pretrain_dataset
 from stageA1_eeg_pretrain import fmri_transform
 from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
@@ -14,7 +14,7 @@ config = Config_MBM_EEG()
 local_rank = config.local_rank
 device = torch.device(f'cuda:{local_rank}')
 
-mode = "train"
+mode = "val"
 types = "label"
 
 
@@ -32,9 +32,9 @@ model = MAEforEEG(time_len=train_dataset.data_len, patch_size=config.patch_size,
                 focus_range=config.focus_range, focus_rate=config.focus_rate, 
                 img_recon_weight=config.img_recon_weight, use_nature_img_loss=config.use_nature_img_loss, num_classes=config.num_classes)   
 
-checkpoint = torch.load("/Data/summer24/DreamDiffusion/DreamDiffuion/results/eeg_pretrain/30-07-2024-01-30-34/checkpoints/checkpoint.pth", map_location='cpu')  # Modify the path to your checkpoint
+checkpoint = torch.load("/Data/summer24/DreamDiffusion/stage1_weight/eegfeat_all_0.9702620967741935.pth", map_location='cpu')  # Modify the path to your checkpoint
 
-model.load_state_dict(checkpoint['model'], strict=False)
+model.load_state_dict(checkpoint['model_state_dict'], strict=False)
 model.eval()
 all_latents = []
 import pandas as pd
@@ -66,4 +66,4 @@ plt.title('2D t-SNE Visualization of Latent Representations')
 plt.scatter(latent_tsne[:, 0], latent_tsne[:, 1],c=all_labels, alpha=0.5)
 plt.colorbar()
 plt.show()
-plt.savefig(f'/Data/summer24/DreamDiffusion/result/30-07_checkpoint_tsne_{mode}_{types}.png')
+plt.savefig(f'/Data/summer24/DreamDiffusion/result/30-07_checkpoint_tsne_22{mode}_{types}.png')

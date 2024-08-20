@@ -8,7 +8,7 @@ torch.manual_seed(45)
 
 
 class EEGFeatNet(nn.Module):
-    def __init__(self, n_classes=67, in_channels=62, n_features=62, projection_dim=128, num_layers=1):
+    def __init__(self, n_classes=67, in_channels=62, n_features=128, projection_dim=128, num_layers=1):
         super(EEGFeatNet, self).__init__()
         self.hidden_size= n_features
         self.num_layers = num_layers
@@ -26,7 +26,7 @@ class EEGFeatNet(nn.Module):
         x = x.transpose(1,2)
         h_n = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(config.device) 
         c_n = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(config.device)
-
+        x = x.transpose(1,2)
         output, (h_n, c_n) = self.encoder( x, (h_n, c_n) )
 
         feat = h_n[-1]

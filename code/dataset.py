@@ -7,7 +7,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 from transformers import AutoProcessor
 import torchvision.transforms as transforms
-
+from pathlib import Path
 
 
 class EEGImageNetDataset(Dataset):

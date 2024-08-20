@@ -167,7 +167,6 @@ class Config_MBM_EEG(Config_MAE_fMRI):
 
 
 
-
 class Config_EEG_finetune(Config_MBM_finetune):
     def __init__(self):
       
@@ -224,14 +223,14 @@ class Config_Generative_Model:
 
         self.pretrain_gm_path = os.path.join(self.root_path, 'pretrains')
         self.dataset = 'EEG' 
-        self.pretrain_latent_path = 'eegtoimage/EXPERIMENT_1/bestckpt/eegfeat_all_0.9702620967741935.pth'
+        self.pretrain_latent_path = '/Data/summer24/DreamDiffusion/DreamDiffuion/results/eeg_pretrain/clip_64.pth'
 
         self.img_size = 512
 
         np.random.seed(self.seed)
         # finetune parameters
         # memeory 문제로 batch 5->1
-        self.batch_size = 42 if self.dataset == 'GOD' else 4 
+        self.batch_size = 128 if self.dataset == 'GOD' else 128
         self.lr = 5.3e-5
         self.num_epoch = 500
         

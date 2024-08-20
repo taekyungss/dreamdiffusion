@@ -147,8 +147,11 @@ def main(config):
     pretrain_latent = torch.load(config.pretrain_latent_path, map_location='cpu',weights_only=False)
     generative_model = eLDM(pretrain_latent, num_voxels,
                 device=device, pretrain_root=config.pretrain_gm_path, logger=config.logger, 
-                ddim_steps=config.ddim_steps, global_pool=config.global_pool, use_time_cond=config.use_time_cond, clip_tune = config.clip_tune, cls_tune = config.cls_tune)
-    
+                ddim_steps=config.ddim_steps, use_time_cond=config.use_time_cond, clip_tune = config.clip_tune, cls_tune = config.cls_tune)
+    #    generative_model = eLDM(pretrain_latent, num_voxels,
+    #             device=device, pretrain_root=config.pretrain_gm_path, logger=config.logger, 
+    #             ddim_steps=config.ddim_steps, global_pool=config.global_pool, use_time_cond=config.use_time_cond, clip_tune = config.clip_tune, cls_tune = config.cls_tune)
+     
 
     # resume training if applicable
     if config.checkpoint_path is not None:

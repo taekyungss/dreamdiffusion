@@ -29,10 +29,10 @@ def clip_loss(similarity: torch.Tensor) -> torch.Tensor:
 
 
 class cond_stage_model(nn.Module):
-    def __init__(self, metafile, num_voxels=400, cond_dim=1280, clip_tune = True, cls_tune = False):
+    def __init__(self, metafile, num_voxels=400, cond_dim=1280, global_pool=True, clip_tune = True, cls_tune = False):
         super().__init__()
         # prepare pretrained eeg_encoder
-        model = EEGFeatNet(n_classes=67, in_channels=62, n_features=62, projection_dim=128, num_layers=1)
+        model = EEGFeatNet(n_classes=67, in_channels=62, n_features=128, projection_dim=128, num_layers=1)
         model.load_checkpoint(metafile['model_state_dict'])
 
         self.encoder = model
@@ -76,17 +76,15 @@ class eLDM:
     # taetae edit
     # def __init__(self, metafile, num_voxels, device=torch.device('cuda'),
             pretrain_root='../pretrains/',
-            logger=None, ddim_steps=125, global_pool=True, use_time_cond=False, clip_tune = True, cls_tune = False, temperature=1.0):
+            logger=None, ddim_steps=125, use_time_cond=False, clip_tune = True, cls_tune = False, temperature=1.0):
         # self.ckp_path = os.path.join(pretrain_root, 'model.ckpt')
 
         self.ckp_path = '/Data/summer24/DreamDiffusion/pretrains/models/v1-5-pruned.ckpt'
         self.config_path = os.path.join('/Data/summer24/DreamDiffusion/pretrains/models/config15.yaml')
         config = OmegaConf.load(self.config_path)
         config.model.params.unet_config.params.use_time_cond = use_time_cond
-        config.model.params.unet_config.params.global_pool = global_pool
-
+        # config.model.params.unet_config.params.global_pool = global_pool
         self.cond_dim = config.model.params.unet_config.params.context_dim
-
         # print(config.model.target)
 
         model = instantiate_from_config(config.model)
@@ -94,7 +92,9 @@ class eLDM:
         m, u = model.load_state_dict(pl_sd, strict=False)
         model.cond_stage_trainable = True
 
-        model.cond_stage_model = cond_stage_model(metafile, num_voxels, clip_tune = clip_tune, cls_tune = cls_tune)
+        # model.cond_stage_model = cond_stage_model(metafile, num_voxels, self.cond_dim, global_pool=global_pool, clip_tune = clip_tune,cls_tune = cls_tune)
+        model.cond_stage_model = cond_stage_model(metafile, num_voxels, self.cond_dim, clip_tune = clip_tune,cls_tune = cls_tune)
+        model.ddim_steps = ddim_steps
         model.ddim_steps = ddim_steps
         model.re_init_ema()
         if logger is not None:
