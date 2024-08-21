@@ -404,8 +404,8 @@ class DDPM(pl.LightningModule):
                 if limit is not None:
                     if count >= limit:
                         break
-                latent = item[0] # fmri embedding
-                gt_image = rearrange(item[1], 'h w c -> 1 c h w') # h w c
+                latent = item[0].transpose(0,1) # fmri embedding
+                gt_image = rearrange(item[1], 'h w c -> 1 h w c') # h w c
                 print(f"rendering {num_samples} examples in {ddim_steps} steps.")
                 # c = model.get_learned_conditioning(repeat(latent, 'h w -> c h w', c=num_samples).to(self.device))
                 c, re_latent = model.get_learned_conditioning(repeat(latent, 'h w -> c h w', c=num_samples).to(self.device))

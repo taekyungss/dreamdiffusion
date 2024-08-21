@@ -21,17 +21,11 @@ class EEGFeatNet(nn.Module):
         config = Config_Generative_Model()
         h_n = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(config.device) 
         c_n = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(config.device)
+        x = x.transpose(1,2)
         output, (h_n, c_n) = self.encoder( x, (h_n, c_n) )
-
-        # feat = h_n[-1]
-        # x = self.fc(feat)
-
-        # feat = h_n[-1]
         feat = output
         x = self.fc(feat)
-        
         x = F.normalize(x, dim=-1)
-
         # # print(x.shape, feat.shape)
         return x
         
