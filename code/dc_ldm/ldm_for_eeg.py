@@ -29,6 +29,7 @@ def clip_loss(similarity: torch.Tensor) -> torch.Tensor:
 
 
 class cond_stage_model(nn.Module):
+    # cond_dim=768
     def __init__(self, metafile, num_voxels=400, cond_dim=768, global_pool=False, clip_tune = True, cls_tune = False):
         super().__init__()
         # prepare pretrained eeg_encoder
@@ -63,11 +64,11 @@ class cond_stage_model(nn.Module):
     def forward(self, x):
         # n, c, w = x.shape
         latent_crossattn = self.encoder(x)
-        latent_crossattn = latent_crossattn.transpose(1,2)
+        latent_return = latent_crossattn.transpose(1,2)
         if self.global_pool == False:
-            latent_crossattn = self.channel_mapper(latent_crossattn)
+            latent_crossattn = self.channel_mapper(latent_return)
         out = self.dim_mapper(latent_crossattn)
-        return out, latent_crossattn
+        return out, latent_return
 
     # def recon(self, x):
     #     recon = self.decoder(x)
@@ -110,8 +111,7 @@ class eLDM:
         model.cond_stage_trainable = True
 
         # model.cond_stage_model = cond_stage_model(metafile, num_voxels, self.cond_dim, global_pool=global_pool, clip_tune = clip_tune,cls_tune = cls_tune)
-        model.cond_stage_model = cond_stage_model(metafile, num_voxels, self.cond_dim, clip_tune = clip_tune,cls_tune = cls_tune)
-        model.ddim_steps = ddim_steps
+        model.cond_stage_model = cond_stage_model(metafile, num_voxels, self.cond_dim, global_pool=global_pool, clip_tune = clip_tune, cls_tune = cls_tune)
         model.ddim_steps = ddim_steps
         model.re_init_ema()
         if logger is not None:
@@ -129,7 +129,7 @@ class eLDM:
 
         self.ldm_config = config
         self.pretrain_root = pretrain_root
-        # self.fmri_latent_dim = model.cond_stage_model.fmri_latent_dim
+        self.fmri_latent_dim = model.cond_stage_model.fmri_latent_dim
         self.metafile = metafile
         self.temperature=temperature
 
@@ -148,8 +148,8 @@ class eLDM:
         print(f'batch_size is: {bs1}')
 
         
-        dataloader = DataLoader(dataset, batch_size=bs1, shuffle=True)
-        valid_loader = DataLoader(valid_dataset, batch_size=bs1, shuffle=True)
+        dataloader = DataLoader(dataset, batch_size=bs1,shuffle=True)
+        valid_loader = DataLoader(valid_dataset, batch_size=bs1,shuffle=True)
         self.model.unfreeze_whole_model()
         self.model.freeze_first_stage()
         # self.model.freeze_whole_model()

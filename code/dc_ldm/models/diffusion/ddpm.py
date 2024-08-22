@@ -404,7 +404,7 @@ class DDPM(pl.LightningModule):
                 if limit is not None:
                     if count >= limit:
                         break
-                latent = item[0].transpose(0,1) # fmri embedding
+                latent = item[0] # fmri embedding
                 gt_image = rearrange(item[1], 'h w c -> 1 h w c') # h w c
                 print(f"rendering {num_samples} examples in {ddim_steps} steps.")
                 # c = model.get_learned_conditioning(repeat(latent, 'h w -> c h w', c=num_samples).to(self.device))
@@ -503,7 +503,7 @@ class DDPM(pl.LightningModule):
             pred_images = [img[s] for img in samples]
             pred_images = rearrange(np.stack(pred_images), 'n c h w -> n h w c')
             res = get_similarity_metric(pred_images, gt_images, 'class', None, 
-                            n_way=50, num_trials=50, top_k=1, device='cuda')
+                            n_way=40, num_trials=50, top_k=1, device='cuda')
             res_part.append(np.mean(res))
         res_list.append(np.mean(res_part))
         res_list.append(np.max(res_part))

@@ -110,14 +110,14 @@ def metrics_only(pred_imgs, gt_imgs, metric, *args, **kwargs):
     return metric(pred_imgs, gt_imgs)
 
 @torch.no_grad()
-def n_way_top_k_acc(pred, class_id, n_way, num_trials=40, top_k=1):
+def n_way_top_k_acc(pred, class_id, n_way, num_trials=50, top_k=1):
     pick_range =[i for i in np.arange(len(pred)) if i != class_id]
     acc_list = []
     for t in range(num_trials):
         idxs_picked = np.random.choice(pick_range, n_way-1, replace=False)
         pred_picked = torch.cat([pred[class_id].unsqueeze(0), pred[idxs_picked]])
         acc = accuracy(pred_picked.unsqueeze(0), torch.tensor([0], device=pred.device), 
-                    top_k=top_k) # task = 'multiclass'
+                    top_k=top_k, task = 'multiclass',num_classes=len(pred_picked))
         acc_list.append(acc.item())
     return np.mean(acc_list), np.std(acc_list)
 

@@ -61,13 +61,13 @@ def get_eval_metric(samples, avg=True):
             pred_images = rearrange(np.stack(pred_images), 'n c h w -> n h w c')
             res = get_similarity_metric(pred_images, gt_images, method='pair-wise', metric_name=m)
             res_part.append(np.mean(res))
-        res_list.append(np.mean(res_part))     
+        res_list.append(np.mean(res_part))
     res_part = []
     for s in samples_to_run:
         pred_images = [img[s] for img in samples]
         pred_images = rearrange(np.stack(pred_images), 'n c h w -> n h w c')
         res = get_similarity_metric(pred_images, gt_images, 'class', None, 
-                        n_way=50, num_trials=50, top_k=1, device='cuda')
+                        n_way=40, num_trials=50, top_k=1, device='cuda')
         res_part.append(np.mean(res))
     res_list.append(np.mean(res_part))
     res_list.append(np.max(res_part))
@@ -148,7 +148,7 @@ def main(config):
     for i in tqdm(natsorted(os.listdir(base_path + train_path))):
         loaded_array = np.load(base_path + train_path + i, allow_pickle=True)
         x_train_eeg.append(loaded_array[1].T)
-        img = cv2.resize(loaded_array[0], (224, 224))
+        img = cv2.resize(loaded_array[0], (512, 512))
         img = (cv2.cvtColor(img, cv2.COLOR_BGR2RGB) - 127.5) / 127.5
         img = np.transpose(img, (2, 0, 1))
         x_train_image.append(img)
@@ -170,7 +170,6 @@ def main(config):
     train_data       = EEGDataset(x_train_eeg, x_train_image, train_labels)
     train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, pin_memory=False, drop_last=True)
 
-
     x_val_eeg = []
     x_val_image = []
     label_Val = []
@@ -178,7 +177,7 @@ def main(config):
     for i in tqdm(natsorted(os.listdir(base_path + validation_path))):
         loaded_array = np.load(base_path + validation_path + i, allow_pickle=True)
         x_val_eeg.append(loaded_array[1].T)
-        img = cv2.resize(loaded_array[0], (224, 224))
+        img = cv2.resize(loaded_array[0], (512, 512))
         img = (cv2.cvtColor(img, cv2.COLOR_BGR2RGB) - 127.5) / 127.5
         img = np.transpose(img, (2, 0, 1))
         x_val_image.append(img)
