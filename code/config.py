@@ -167,7 +167,6 @@ class Config_MBM_EEG(Config_MAE_fMRI):
 
 
 
-
 class Config_EEG_finetune(Config_MBM_finetune):
     def __init__(self):
       
@@ -208,10 +207,10 @@ class Config_Generative_Model:
     def __init__(self):
         # project parameters
         self.seed = 2022
-        self.root_path = '/Data/summer24/DreamDiffusion/'
-        self.output_path = '/Data/summer24/DreamDiffusion/exps/'
-        self.eeg_signals_path = os.path.join( '/Data/summer24/DreamDiffusion/data/eeg_5_95_std.pth')
-        self.splits_path = os.path.join('/Data/summer24/DreamDiffusion/data/block_splits_by_image_single.pth')
+        self.root_path = '../DreamDiffusion/'
+        self.output_path = '../DreamDiffusion/exps/'
+        self.eeg_signals_path = os.path.join(self.root_path, 'data/eeg_5_95_std.pth')
+        self.splits_path = os.path.join(self.root_path, 'data/block_splits_by_image_single.pth')
         # self.splits_path = os.path.join(self.root_path, 'datasets/block_splits_by_image_all.pth')
         self.roi = 'VC'
         self.patch_size = 4 # 16
@@ -220,18 +219,18 @@ class Config_Generative_Model:
         self.num_heads = 16
         self.mlp_ratio = 1.0
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+        self.logger = None
 
         self.pretrain_gm_path = os.path.join(self.root_path, 'pretrains')
         self.dataset = 'EEG' 
-        self.pretrain_latent_path = 'eegtoimage/EXPERIMENT_1/bestckpt/eegfeat_all_0.9702620967741935.pth'
+        self.pretrain_mbm_path = '/Data/summer24/DreamDiffusion/stage1_weight/eegfeat_all_0.9702620967741935.pth'
 
         self.img_size = 512
 
         np.random.seed(self.seed)
         # finetune parameters
         # memeory 문제로 batch 5->1
-        self.batch_size = 42 if self.dataset == 'GOD' else 4 
+        self.batch_size = 128 if self.dataset == 'GOD' else 128
         self.lr = 5.3e-5
         self.num_epoch = 500
         

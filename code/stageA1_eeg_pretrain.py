@@ -14,7 +14,7 @@ import wandb
 import copy
 # from sklearn.manifold import TSNE
 from config import Config_MBM_EEG
-from eegtoimage.dataset import eeg_pretrain_dataset
+from dataset import eeg_pretrain_dataset
 from sc_mbm.mae_for_eeg import MAEforEEG
 from sc_mbm.trainer import train_one_epoch, validate
 from sc_mbm.trainer import EarlyStopping

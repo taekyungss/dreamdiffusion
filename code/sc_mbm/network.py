@@ -8,7 +8,7 @@ torch.manual_seed(45)
 
 
 class EEGFeatNet(nn.Module):
-    def __init__(self, n_classes=67, in_channels=62, n_features=62, projection_dim=128, num_layers=1):
+    def __init__(self, n_classes=40, in_channels=128, n_features=128, projection_dim=128, num_layers=1):
         super(EEGFeatNet, self).__init__()
         self.hidden_size= n_features
         self.num_layers = num_layers
@@ -16,27 +16,18 @@ class EEGFeatNet(nn.Module):
         self.encoder    = nn.LSTM(input_size=in_channels, hidden_size=self.hidden_size, num_layers=self.num_layers, batch_first=True)
         self.fc         = nn.Linear(in_features=n_features, out_features=projection_dim, bias=False)
         
-        # self.feat_layer = nn.Linear(in_features=self.hidden_size, out_features=n_features)
-        # self.proj_layer = nn.Sequential(
-        #                                     nn.LeakyReLU(),
-        #                                     nn.Linear(in_features=n_features, out_features=projection_dim)
-        #                                 )
+
     def forward(self, x):
         config = Config_Generative_Model()
-        x = x.transpose(1,2)
         h_n = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(config.device) 
         c_n = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(config.device)
-
         output, (h_n, c_n) = self.encoder( x, (h_n, c_n) )
-
-        feat = h_n[-1]
+        feat = output
         x = self.fc(feat)
-        
-        # Uncomment this while training with triplet loss
         x = F.normalize(x, dim=-1)
-
-        # print(x.shape, feat.shape)
+        # # print(x.shape, feat.shape)
         return x
+        
 
     def load_checkpoint(self, state_dict):
         m, u = self.load_state_dict(state_dict, strict=False)

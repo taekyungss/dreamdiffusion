@@ -29,10 +29,11 @@ def clip_loss(similarity: torch.Tensor) -> torch.Tensor:
 
 
 class cond_stage_model(nn.Module):
-    def __init__(self, metafile, num_voxels=400, cond_dim=1280, clip_tune = True, cls_tune = False):
+    # cond_dim=768
+    def __init__(self, metafile, num_voxels=400, cond_dim=768, global_pool=False, clip_tune = True, cls_tune = False):
         super().__init__()
         # prepare pretrained eeg_encoder
-        model = EEGFeatNet(n_classes=67, in_channels=62, n_features=62, projection_dim=128, num_layers=1)
+        model = EEGFeatNet(n_classes=40, in_channels=128, n_features=128, projection_dim=128, num_layers=1)
         model.load_checkpoint(metafile['model_state_dict'])
 
         self.encoder = model
@@ -41,15 +42,32 @@ class cond_stage_model(nn.Module):
             self.mapping = mapping()
         if cls_tune:
             self.cls_net = classify_network()
+        # self.fmri_seq_len = model.num_patches -> (time_len//patch_size) 1024
+        # self.fmri_latent_dim = model.embed_dim -> 1024
+        self.fmri_seq_len = 128
+        self.fmri_latent_dim = 440
 
+        if global_pool == False:
+            self.channel_mapper = nn.Sequential(
+                nn.Conv1d(self.fmri_seq_len, self.fmri_seq_len // 2, 1, bias=True),
+                nn.Conv1d(self.fmri_seq_len // 2, 77, 1, bias=True)
+            )
+
+        # if global_pool == False:
+        # self.channel_mapper = nn.Sequential(
+        #     nn.Conv1d(128, 64, 1, bias=True),
+        #     nn.Conv1d(64, 77, 1, bias=True)
+        # )
+        self.dim_mapper = nn.Linear(self.fmri_latent_dim, cond_dim, bias=True)
+        self.global_pool = global_pool
 
     def forward(self, x):
         # n, c, w = x.shape
         latent_crossattn = self.encoder(x)
-        latent_return = latent_crossattn
-        # latent_crossattn = self.channel_mapper(latent_crossattn)
-        # latent_crossattn = self.dim_mapper(latent_crossattn)
-        out = latent_crossattn
+        latent_return = latent_crossattn.transpose(1,2)
+        if self.global_pool == False:
+            latent_crossattn = self.channel_mapper(latent_return)
+        out = self.dim_mapper(latent_crossattn)
         return out, latent_return
 
     # def recon(self, x):
@@ -76,7 +94,7 @@ class eLDM:
     # taetae edit
     # def __init__(self, metafile, num_voxels, device=torch.device('cuda'),
             pretrain_root='../pretrains/',
-            logger=None, ddim_steps=125, global_pool=True, use_time_cond=False, clip_tune = True, cls_tune = False, temperature=1.0):
+            logger=None, ddim_steps=125, global_pool = True, use_time_cond=False, clip_tune = True, cls_tune = False, temperature=1.0):
         # self.ckp_path = os.path.join(pretrain_root, 'model.ckpt')
 
         self.ckp_path = '/Data/summer24/DreamDiffusion/pretrains/models/v1-5-pruned.ckpt'
@@ -84,9 +102,7 @@ class eLDM:
         config = OmegaConf.load(self.config_path)
         config.model.params.unet_config.params.use_time_cond = use_time_cond
         config.model.params.unet_config.params.global_pool = global_pool
-
         self.cond_dim = config.model.params.unet_config.params.context_dim
-
         # print(config.model.target)
 
         model = instantiate_from_config(config.model)
@@ -94,7 +110,8 @@ class eLDM:
         m, u = model.load_state_dict(pl_sd, strict=False)
         model.cond_stage_trainable = True
 
-        model.cond_stage_model = cond_stage_model(metafile, num_voxels, clip_tune = clip_tune, cls_tune = cls_tune)
+        # model.cond_stage_model = cond_stage_model(metafile, num_voxels, self.cond_dim, global_pool=global_pool, clip_tune = clip_tune,cls_tune = cls_tune)
+        model.cond_stage_model = cond_stage_model(metafile, num_voxels, self.cond_dim, global_pool=global_pool, clip_tune = clip_tune, cls_tune = cls_tune)
         model.ddim_steps = ddim_steps
         model.re_init_ema()
         if logger is not None:
@@ -112,7 +129,7 @@ class eLDM:
 
         self.ldm_config = config
         self.pretrain_root = pretrain_root
-        # self.fmri_latent_dim = model.cond_stage_model.fmri_latent_dim
+        self.fmri_latent_dim = model.cond_stage_model.fmri_latent_dim
         self.metafile = metafile
         self.temperature=temperature
 
@@ -131,8 +148,8 @@ class eLDM:
         print(f'batch_size is: {bs1}')
 
         
-        dataloader = DataLoader(dataset, batch_size=bs1, shuffle=True)
-        valid_loader = DataLoader(valid_dataset, batch_size=bs1, shuffle=True)
+        dataloader = DataLoader(dataset, batch_size=bs1,shuffle=True)
+        valid_loader = DataLoader(valid_dataset, batch_size=bs1,shuffle=True)
         self.model.unfreeze_whole_model()
         self.model.freeze_first_stage()
         # self.model.freeze_whole_model()

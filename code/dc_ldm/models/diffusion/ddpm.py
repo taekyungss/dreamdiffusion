@@ -358,7 +358,7 @@ class DDPM(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         self.train()
-        self.cond_stage_model.train()  ###到底是在哪里训练的
+        self.cond_stage_model.train()
         
         loss, loss_dict = self.shared_step(batch)
 
@@ -399,12 +399,13 @@ class DDPM(pl.LightningModule):
 
         # state = torch.cuda.get_rng_state()    
         with model.ema_scope():
-            for count, item in enumerate(zip(data['eeg'], data['image'])):
+            # for count, item in enumerate(zip(data['eeg'], data['image'])):
+            for count, item in enumerate(zip(data[0], data[1])):
                 if limit is not None:
                     if count >= limit:
                         break
                 latent = item[0] # fmri embedding
-                gt_image = rearrange(item[1], 'h w c -> 1 c h w') # h w c
+                gt_image = rearrange(item[1], 'h w c -> 1 h w c') # h w c
                 print(f"rendering {num_samples} examples in {ddim_steps} steps.")
                 # c = model.get_learned_conditioning(repeat(latent, 'h w -> c h w', c=num_samples).to(self.device))
                 c, re_latent = model.get_learned_conditioning(repeat(latent, 'h w -> c h w', c=num_samples).to(self.device))
@@ -420,7 +421,7 @@ class DDPM(pl.LightningModule):
                 gt_image = torch.clamp((gt_image+1.0)/2.0,min=0.0, max=1.0)
                 
                 all_samples.append(torch.cat([gt_image.detach().cpu(), x_samples_ddim.detach().cpu()], dim=0)) # put groundtruth at first
-        
+        # size = (batch_size, C, H, W)
         # display as grid
         grid = torch.stack(all_samples, 0)
         grid = rearrange(grid, 'n b c h w -> (n b) c h w')
@@ -502,7 +503,7 @@ class DDPM(pl.LightningModule):
             pred_images = [img[s] for img in samples]
             pred_images = rearrange(np.stack(pred_images), 'n c h w -> n h w c')
             res = get_similarity_metric(pred_images, gt_images, 'class', None, 
-                            n_way=50, num_trials=50, top_k=1, device='cuda')
+                            n_way=40, num_trials=50, top_k=1, device='cuda')
             res_part.append(np.mean(res))
         res_list.append(np.mean(res_part))
         res_list.append(np.max(res_part))
