@@ -145,6 +145,7 @@ def main(config):
     class_labels   = {}
     label_count    = 0
 
+# 이 부분이 npy로 되어 있는 train / val / test 로 나눠진 데이터들을 불러오는 과정
     for i in tqdm(natsorted(os.listdir(base_path + train_path))):
         loaded_array = np.load(base_path + train_path + i, allow_pickle=True)
         x_train_eeg.append(loaded_array[1].T)

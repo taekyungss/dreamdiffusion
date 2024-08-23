@@ -344,7 +344,8 @@ class DDPM(pl.LightningModule):
         return self.p_losses(x, t, *args, **kwargs)
 
     def get_input(self, batch, k):
-        x = batch[k]
+        # 원래 k 값은 'image' -> 새로운 dataloader는 batch[0] : eeg data , batch[1] : image data
+        x = batch[1]
         if len(x.shape) == 3:
             x = x[..., None]
         x = rearrange(x, 'b h w c -> b c h w')
