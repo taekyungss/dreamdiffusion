@@ -63,7 +63,9 @@ class cond_stage_model(nn.Module):
 
     def forward(self, x):
         # n, c, w = x.shape
+        # latent_crossattn = [3,440,128]
         latent_crossattn = self.encoder(x)
+        # latent_return = [3,77,440]
         latent_return = latent_crossattn.transpose(1,2)
         if self.global_pool == False:
             latent_crossattn = self.channel_mapper(latent_return)

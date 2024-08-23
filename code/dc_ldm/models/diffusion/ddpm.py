@@ -417,11 +417,13 @@ class DDPM(pl.LightningModule):
                                                 verbose=False,
                                                 generator=None)
 
-                x_samples_ddim = model.decode_first_stage(samples_ddim)
-                x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0,min=0.0, max=1.0)
-                gt_image = torch.clamp((gt_image+1.0)/2.0,min=0.0, max=1.0)
+                x_samples_ddim = model.decode_first_stage(samples_ddim) #[3,3,512,512]
+                x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0,min=0.0, max=1.0) #[3,3,512,512]
+                gt_image = torch.clamp((gt_image+1.0)/2.0,min=0.0, max=1.0) #[1,3,512,512]
                 
                 all_samples.append(torch.cat([gt_image.detach().cpu(), x_samples_ddim.detach().cpu()], dim=0)) # put groundtruth at first
+                # all_samples[0] -> 4,3,512,512
+        
         # size = (batch_size, C, H, W)
         # display as grid
         grid = torch.stack(all_samples, 0)
@@ -744,6 +746,8 @@ class LatentDiffusion(DDPM):
             c, re_latent = self.cond_stage_model.encode(c)
             # c = self.cond_stage_model.encode(c)
         else:
+            # 여기 통과함
+            # c = [3,77,768] / re_latent = [3,128,440]
             c, re_latent = self.cond_stage_model(c)
             # c = self.cond_stage_model(c)
         # return c
