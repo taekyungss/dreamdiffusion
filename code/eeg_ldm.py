@@ -171,6 +171,11 @@ def main(config):
     train_data       = EEGDataset(x_train_eeg, x_train_image, train_labels)
     train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, pin_memory=False, drop_last=True)
 
+    # my loader
+    # img.shape [3,512,512]
+    # train_data[0][0] (1 sample) eeg [440,128] / img [3,512,512]
+
+
     x_val_eeg = []
     x_val_image = []
     label_Val = []
@@ -197,6 +202,7 @@ def main(config):
     val_labels  = torch.from_numpy(val_labels).long().to(device)
 
     val_data       = EEGDataset(x_val_eeg, x_val_image, val_labels)
+
     val_dataloader = DataLoader(val_data, batch_size=batch_size, shuffle=False, pin_memory=False, drop_last=True)
 
     # prepare pretrained mbm 
