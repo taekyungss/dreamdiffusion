@@ -587,6 +587,7 @@ class LatentDiffusion(DDPM):
                 scale_factor=1.0,
                 scale_by_std=False,
                 *args, **kwargs):
+                
         self.num_timesteps_cond = default(num_timesteps_cond, 1)
         self.scale_by_std = scale_by_std
         assert self.num_timesteps_cond <= kwargs['timesteps']

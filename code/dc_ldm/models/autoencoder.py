@@ -152,7 +152,7 @@ class VQModel(pl.LightningModule):
                  ):
         super().__init__()
         self.embed_dim = embed_dim
-        self.n_embed = n_embed
+        self.n_embed = n_embedFv
         self.image_key = image_key
         self.encoder = Encoder(**ddconfig)
         self.decoder = Decoder(**ddconfig)
@@ -444,6 +444,7 @@ class AutoencoderKL(pl.LightningModule):
         print(f"Restored from {path}")
 
     def encode(self, x):
+        # x = x.transpose(1,2)
         h = self.encoder(x)
         moments = self.quant_conv(h)
         posterior = DiagonalGaussianDistribution(moments)

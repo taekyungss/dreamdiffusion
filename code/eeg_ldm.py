@@ -126,6 +126,8 @@ def fmri_transform(x, sparse_rate=0.2):
 def main(config):
     # project setup
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    torch.cuda.set_device(config2.rank)
+
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
     config = Config_Generative_Model()

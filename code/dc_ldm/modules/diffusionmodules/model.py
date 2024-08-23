@@ -436,6 +436,7 @@ class Encoder(nn.Module):
         temb = None
 
         # downsampling
+        # taetae transpose 추가
         hs = [self.conv_in(x)]
         for i_level in range(self.num_resolutions):
             for i_block in range(self.num_res_blocks):

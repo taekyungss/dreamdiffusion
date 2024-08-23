@@ -202,8 +202,8 @@ class eLDM:
                     if count >= limit:
                         break
                 # print(item)
-                latent = item['eeg']
-                gt_image = rearrange(item['image'], 'h w c -> 1 c h w') # h w c
+                latent = item[0]
+                gt_image = rearrange(item[1], 'h w c -> 1 h w c') # h w c
                 print(f"rendering {num_samples} examples in {ddim_steps} steps.")
                 # assert latent.shape[-1] == self.fmri_latent_dim, 'dim error'
 
@@ -220,6 +220,8 @@ class eLDM:
                 gt_image = torch.clamp((gt_image+1.0)/2.0, min=0.0, max=1.0)
 
                 all_samples.append(torch.cat([gt_image, x_samples_ddim.detach().cpu()], dim=0)) # put groundtruth at first
+                
+                
                 if output_path is not None and shouldSave == True:
                     samples_t = (255. * torch.cat([gt_image, x_samples_ddim.detach().cpu()], dim=0).numpy()).astype(np.uint8)
                     for copy_idx, img_t in enumerate(samples_t):
