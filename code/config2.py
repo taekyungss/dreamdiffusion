@@ -10,7 +10,6 @@ import warnings
 warnings.warn = warn
 
 
-
 # base_path       = '/Data/summer24/eegtoimage/'
 # train_path      = 'data/eeg_imagenet40_cvpr_2017_raw/train/'
 # validation_path = 'data/eeg_imagenet40_cvpr_2017_raw/val/'

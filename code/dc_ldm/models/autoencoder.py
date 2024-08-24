@@ -152,7 +152,7 @@ class VQModel(pl.LightningModule):
                  ):
         super().__init__()
         self.embed_dim = embed_dim
-        self.n_embed = n_embedFv
+        self.n_embed = n_embed
         self.image_key = image_key
         self.encoder = Encoder(**ddconfig)
         self.decoder = Decoder(**ddconfig)

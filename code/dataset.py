@@ -18,6 +18,7 @@ import os
 import numpy as np
 import config
 import cv2
+from einops import rearrange
 # from dataaugmentation import apply_augmentation, extract_freq_band
 
 
@@ -34,6 +35,7 @@ class EEGDataset(Dataset):
         norm   = torch.max(eeg) / 2.0
         eeg    = (eeg - norm)/ norm
         image  = self.images[index]
+        image = rearrange(image, 'c h w -> h w c')
         label  = self.labels[index]
         return eeg, image, label
 

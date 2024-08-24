@@ -150,8 +150,9 @@ class eLDM:
         print(f'batch_size is: {bs1}')
 
         
-        dataloader = DataLoader(dataset, batch_size=bs1,shuffle=True)
-        valid_loader = DataLoader(valid_dataset, batch_size=bs1,shuffle=True)
+        train_loader = DataLoader(dataset, batch_size=bs1, shuffle=True)
+        valid_loader = DataLoader(valid_dataset, batch_size=bs1, shuffle=True)
+
         self.model.unfreeze_whole_model()
         self.model.freeze_first_stage()
         # self.model.freeze_whole_model()
@@ -161,7 +162,7 @@ class eLDM:
         self.model.train_cond_stage_only = True
         self.model.eval_avg = config.eval_avg
         #  create_trainer(config.num_epoch, config.precision, config.accumulate_grad, config.logger, check_val_every_n_epoch=2)
-        trainers.fit(self.model, dataloader, val_dataloaders=valid_loader)
+        trainers.fit(self.model, train_loader, val_dataloaders=valid_loader)
 
         self.model.unfreeze_whole_model()
 
@@ -203,7 +204,7 @@ class eLDM:
                         break
                 # print(item)
                 latent = item[0]
-                gt_image = rearrange(item[1], 'h w c -> 1 h w c') # h w c
+                gt_image = rearrange(item[1], 'h w c -> 1 c h w') # h w c
                 print(f"rendering {num_samples} examples in {ddim_steps} steps.")
                 # assert latent.shape[-1] == self.fmri_latent_dim, 'dim error'
 
