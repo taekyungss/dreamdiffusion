@@ -386,6 +386,8 @@ class Encoder(nn.Module):
                                        stride=1,
                                        padding=1)
 
+                                       
+
         curr_res = resolution
         in_ch_mult = (1,)+tuple(ch_mult)
         self.in_ch_mult = in_ch_mult
