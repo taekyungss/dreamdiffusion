@@ -150,8 +150,8 @@ class eLDM:
         print(f'batch_size is: {bs1}')
 
         
-        train_loader = DataLoader(dataset, batch_size=bs1, shuffle=True)
-        valid_loader = DataLoader(valid_dataset, batch_size=bs1, shuffle=True)
+        train_loader = DataLoader(dataset, batch_size=bs1,pin_memory=False, shuffle=True)
+        valid_loader = DataLoader(valid_dataset, batch_size=bs1,pin_memory=False, shuffle=True)
 
         self.model.unfreeze_whole_model()
         self.model.freeze_first_stage()
