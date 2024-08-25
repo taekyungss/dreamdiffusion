@@ -3,7 +3,7 @@
 
 # Stage 1: Encoder
 
-LSTM (4 layers) + Triplet Loss
+- LSTM (4 layers) + Triplet Loss
 
 # Stage 2:
 - EEG & CLIP Image Embedding → Training Embedding
