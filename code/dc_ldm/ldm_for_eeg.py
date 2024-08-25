@@ -107,8 +107,8 @@ class eLDM:
         # self.ckp_path = os.path.join(pretrain_root, 'model.ckpt')
 
         # 여기다가 stable diffusion ckpt 들어감.
-        self.ckp_path = 'pretrains/models/v1-5-pruned.ckpt'
-        self.config_path = os.path.join('pretrains/models/config15.yaml')
+        self.ckp_path = '../DreamDiffusion/pretrains/models/v1-5-pruned.ckpt'
+        self.config_path = os.path.join('../DreamDiffusion/pretrains/models/config15.yaml')
         config = OmegaConf.load(self.config_path)
         config.model.params.unet_config.params.use_time_cond = use_time_cond
         config.model.params.unet_config.params.global_pool = global_pool

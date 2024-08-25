@@ -345,8 +345,10 @@ class DDPM(pl.LightningModule):
 
     def get_input(self, batch, k):
         x = batch[k]
+        # x : (5,512,512,3)
         if len(x.shape) == 3:
             x = x[..., None]
+            # x : (5,3,512,512)
         x = rearrange(x, 'b h w c -> b c h w')
         x = x.to(memory_format=torch.contiguous_format).float()
         return x
@@ -840,18 +842,18 @@ class LatentDiffusion(DDPM):
     def get_input(self, batch, k, return_first_stage_outputs=False, force_c_encode=False,
                   cond_key=None, return_original_cond=False, bs=None):
         x = super().get_input(batch, k)
+        # x : (5,3,512,512)
         if bs is not None:
             x = x[:bs]
         x = x.to(self.device)
+        # x : (5,3,512,512)
         encoder_posterior = self.encode_first_stage(x)
-        # print('encoder_posterior.shape')
-        # print(encoder_posterior.shape)
+        # encoder_posterior
+        # logvar : (5,4,64,64) , mean: (5,4,64,64) , parameters : (5,8,64,64), std  (5,4,64,64) , var (5,4,64,64)
+
         z = self.get_first_stage_encoding(encoder_posterior).detach()
-        # print('z.shape')
-        # print(z.shape)
-        # print(cond_key)
-        # print(self.cond_stage_key)
-        # print(cond_key)
+        # z : (5,4,64,64)
+
         if self.model.conditioning_key is not None:
             if cond_key is None:
                 cond_key = self.cond_stage_key
@@ -875,6 +877,8 @@ class LatentDiffusion(DDPM):
                     # c = self.get_learned_conditioning(xc)
                 else:
                     c, re_latent = self.get_learned_conditioning(xc.to(self.device))
+
+                    # c : 5,128,512
                     # c = self.get_learned_conditioning(xc.to(self.device))
             else:
                 c = xc
@@ -893,6 +897,7 @@ class LatentDiffusion(DDPM):
                 pos_x, pos_y = self.compute_latent_shifts(batch)
                 c = {'pos_x': pos_x, 'pos_y': pos_y}
         out = [z, c , batch['label'], batch['image_raw']]
+        # out[0] : (5,4,64,64)
         if return_first_stage_outputs:
             xrec = self.decode_first_stage(z)
             out.extend([x, xrec])
@@ -1028,11 +1033,9 @@ class LatentDiffusion(DDPM):
         self.freeze_first_stage()
         # print('share step\'s get input')
         x, c, label, image_raw = self.get_input(batch, self.first_stage_key)
-        # print('get input shape')
-        # print('x.shape')
-        # print(x.shape)
-        # print('c.shape')
-        # print(c.shape)
+
+        # x : (5,4,64,64) / c : (5,128,512) / label (5) / image_raw['pixel_values] (5,3,224,224)
+
         if self.return_cond:
             loss, cc = self(x, c, label, image_raw)
             return loss, cc
@@ -1177,7 +1180,7 @@ class LatentDiffusion(DDPM):
         else:
             raise NotImplementedError()
 
-        loss_simple = self.get_loss(model_output, target, mean=False).mean([1, 2, 3])
+        loss_simple = self.get_loss(model_output, target, mean=False).mean([1, 2, 3]).to('cpu')
         loss_dict.update({f'{prefix}/loss_simple': loss_simple.mean()})
 
         logvar_t = self.logvar[t].to(self.device)

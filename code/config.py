@@ -173,8 +173,8 @@ class Config_Generative_Model:
         self.seed = 2022
         self.root_path = '../DreamDiffusion/'
         self.output_path = '../DreamDiffusion/exps/'
-        self.eeg_signals_path = os.path.join(self.root_path, 'datasets/eeg_5_95_std.pth')
-        self.splits_path = os.path.join(self.root_path, 'datasets/block_splits_by_image_single.pth')
+        self.eeg_signals_path = os.path.join(self.root_path, 'data/eeg_5_95_std.pth')
+        self.splits_path = os.path.join(self.root_path, 'data/block_splits_by_image_single.pth')
         # self.splits_path = os.path.join(self.root_path, 'datasets/block_splits_by_image_all.pth')
         self.roi = 'VC'
         self.patch_size = 4 # 16
@@ -185,14 +185,14 @@ class Config_Generative_Model:
 
         self.pretrain_gm_path = os.path.join(self.root_path, 'pretrains')
         self.dataset = 'EEG' 
-        self.pretrain_mbm_path = 'DreamDiffuion/results/eeg_pretrain/05-07-2024-15-48-16/checkpoints/checkpoint.pth'
+        self.pretrain_mbm_path = '/Data/summer24/DreamDiffusion/DreamDiffuion/results/eeg_pretrain/08-08-2024-01-06-34/checkpoints/checkpoint_epoch_237_acc_0.4609.pth'
 
         self.img_size = 512
 
         np.random.seed(self.seed)
         # finetune parameters
         # memeory 문제로 batch 5->1
-        self.batch_size = 4 if self.dataset == 'GOD' else 16
+        self.batch_size = 4 if self.dataset == 'GOD' else 5
         self.lr = 5.3e-5
         self.num_epoch = 500
         
