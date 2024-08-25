@@ -123,6 +123,7 @@ class ResnetBlock(nn.Module):
         h = self.norm1(h)
         h = nonlinearity(h)
         h = self.conv1(h)
+        # h : [3,512,64,64]
 
         if temb is not None:
             h = h + self.temb_proj(nonlinearity(temb))[:,:,None,None]
@@ -131,7 +132,7 @@ class ResnetBlock(nn.Module):
         h = nonlinearity(h)
         h = self.dropout(h)
         h = self.conv2(h)
-
+        # h : [3,512,64,64]
         if self.in_channels != self.out_channels:
             if self.use_conv_shortcut:
                 x = self.conv_shortcut(x)
@@ -139,7 +140,7 @@ class ResnetBlock(nn.Module):
                 x = self.nin_shortcut(x)
 
         return x+h
-
+        # (x+h) : [3,512,64,64]
 
 class LinAttnBlock(LinearAttention):
     """to match AttnBlock usage"""
@@ -436,6 +437,7 @@ class Encoder(nn.Module):
         temb = None
 
         # downsampling
+        # taetae transpose 추가
         hs = [self.conv_in(x)]
         for i_level in range(self.num_resolutions):
             for i_block in range(self.num_res_blocks):
@@ -561,7 +563,9 @@ class Decoder(nn.Module):
             return h
 
         h = self.norm_out(h)
+        # h : [3,128,512,512]
         h = nonlinearity(h)
+        # h : [3,3,512,512]
         h = self.conv_out(h)
         if self.tanh_out:
             h = torch.tanh(h)

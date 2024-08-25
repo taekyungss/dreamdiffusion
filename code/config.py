@@ -230,7 +230,7 @@ class Config_Generative_Model:
         np.random.seed(self.seed)
         # finetune parameters
         # memeory 문제로 batch 5->1
-        self.batch_size = 128 if self.dataset == 'GOD' else 128
+        self.batch_size = 8
         self.lr = 5.3e-5
         self.num_epoch = 500
         

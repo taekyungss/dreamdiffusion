@@ -9,12 +9,21 @@ import numpy as np
 from eval_metrics import get_similarity_metric
 
 
+# def create_trainer(num_epoch, precision=32, accumulate_grad_batches=2,logger=None,check_val_every_n_epoch=10):
+#     acc = 'gpu' if torch.cuda.is_available() else 'cpu'
+#     return pl.Trainer(accelerator=acc, max_epochs=num_epoch, logger=logger,
+#             precision=precision, accumulate_grad_batches=accumulate_grad_batches,
+#             enable_checkpointing=False, enable_model_summary=False, gradient_clip_val=0.5,
+#             check_val_every_n_epoch=check_val_every_n_epoch, limit_val_batches=0.15, limit_test_batches=0.15, limit_predict_batches=0.5, devices=8, strategy="ddp")
+
+
 def create_trainer(num_epoch, precision=32, accumulate_grad_batches=2,logger=None,check_val_every_n_epoch=10):
     acc = 'gpu' if torch.cuda.is_available() else 'cpu'
     return pl.Trainer(accelerator=acc, max_epochs=num_epoch, logger=logger,
             precision=precision, accumulate_grad_batches=accumulate_grad_batches,
             enable_checkpointing=False, enable_model_summary=False, gradient_clip_val=0.5,
             check_val_every_n_epoch=check_val_every_n_epoch, limit_val_batches=0.15, limit_test_batches=0.15, limit_predict_batches=0.5)
+
 
 def normalize(img):
     if img.shape[-1] == 3:

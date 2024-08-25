@@ -16,13 +16,14 @@ from torch.nn import Identity
 import lpips
 import config2
 from torch.utils.data import DataLoader
-from config import Config_Generative_Model
 from dataset import EEGDataset
+from config import Config_Generative_Model
 from dc_ldm.ldm_for_eeg import eLDM
 from eval_metrics import get_similarity_metric
 from natsort import natsorted
 import os
 import cv2
+
 
 
 def wandb_init(config, output_path):
@@ -126,8 +127,10 @@ def fmri_transform(x, sparse_rate=0.2):
 def main(config):
     # project setup
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
+
     config = Config_Generative_Model()
     start_time = time.time()
     base_path       = config2.base_path
@@ -137,6 +140,7 @@ def main(config):
 
     x_train_eeg = []
     x_train_image = []
+    x_train_raw_img = []
     labels = []
 
     batch_size     = config2.batch_size
@@ -145,17 +149,15 @@ def main(config):
     class_labels   = {}
     label_count    = 0
 
+# 이 부분이 npy로 되어 있는 train / val / test 로 나눠진 데이터들을 불러오는 과정
     for i in tqdm(natsorted(os.listdir(base_path + train_path))):
         loaded_array = np.load(base_path + train_path + i, allow_pickle=True)
         x_train_eeg.append(loaded_array[1].T)
+        x_train_raw_img.append(loaded_array[0])
         img = cv2.resize(loaded_array[0], (512, 512))
         img = (cv2.cvtColor(img, cv2.COLOR_BGR2RGB) - 127.5) / 127.5
         img = np.transpose(img, (2, 0, 1))
         x_train_image.append(img)
-        # if loaded_array[3] not in class_labels:
-        # 	class_labels[loaded_array[3]] = label_count
-        # 	label_count += 1
-        # labels.append(class_labels[loaded_array[3]])
         labels.append(loaded_array[2])
         
     x_train_eeg   = np.array(x_train_eeg)
@@ -167,24 +169,27 @@ def main(config):
     x_train_image = torch.from_numpy(x_train_image).float().to(device)
     train_labels  = torch.from_numpy(train_labels).long().to(device)
 
-    train_data       = EEGDataset(x_train_eeg, x_train_image, train_labels)
+    train_data       = EEGDataset(x_train_eeg, x_train_image, x_train_raw_img, train_labels)
     train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, pin_memory=False, drop_last=True)
+
+    # my loader
+    # img.shape [3,512,512]
+    # train_data[0][0] (1 sample) eeg [440,128] / img [3,512,512]
+
 
     x_val_eeg = []
     x_val_image = []
+    x_val_raw_img = []
     label_Val = []
 
     for i in tqdm(natsorted(os.listdir(base_path + validation_path))):
         loaded_array = np.load(base_path + validation_path + i, allow_pickle=True)
         x_val_eeg.append(loaded_array[1].T)
+        x_val_raw_img.append(loaded_array[0])
         img = cv2.resize(loaded_array[0], (512, 512))
         img = (cv2.cvtColor(img, cv2.COLOR_BGR2RGB) - 127.5) / 127.5
         img = np.transpose(img, (2, 0, 1))
         x_val_image.append(img)
-        # if loaded_array[3] not in class_labels:
-        # 	class_labels[loaded_array[3]] = label_count
-        # 	label_count += 1
-        # label_Val.append(class_labels[loaded_array[3]])
         label_Val.append(loaded_array[2])
         
     x_val_eeg   = np.array(x_val_eeg)
@@ -195,7 +200,7 @@ def main(config):
     x_val_image = torch.from_numpy(x_val_image).float().to(device)
     val_labels  = torch.from_numpy(val_labels).long().to(device)
 
-    val_data       = EEGDataset(x_val_eeg, x_val_image, val_labels)
+    val_data       = EEGDataset(x_val_eeg, x_val_image,x_val_raw_img, val_labels)
     val_dataloader = DataLoader(val_data, batch_size=batch_size, shuffle=False, pin_memory=False, drop_last=True)
 
     # prepare pretrained mbm 
@@ -267,10 +272,14 @@ def create_readme(config, path):
 
 def create_trainer(num_epoch, precision=32, accumulate_grad_batches=2,logger=None,check_val_every_n_epoch=0):
     acc = 'gpu' if torch.cuda.is_available() else 'cpu'
+    # return pl.Trainer(accelerator=acc, max_epochs=num_epoch, logger=logger, 
+    #         precision=precision, accumulate_grad_batches=accumulate_grad_batches,
+    #         enable_checkpointing=False, enable_model_summary=False, gradient_clip_val=0.5,
+    #         check_val_every_n_epoch=check_val_every_n_epoch, devices=8, strategy = 'ddp')
     return pl.Trainer(accelerator=acc, max_epochs=num_epoch, logger=logger, 
-            precision=precision, accumulate_grad_batches=accumulate_grad_batches,
-            enable_checkpointing=False, enable_model_summary=False, gradient_clip_val=0.5,
-            check_val_every_n_epoch=check_val_every_n_epoch)
+        precision=precision, accumulate_grad_batches=accumulate_grad_batches,
+        enable_checkpointing=False, enable_model_summary=False, gradient_clip_val=0.5,
+        check_val_every_n_epoch=check_val_every_n_epoch)
   
 
 if __name__ == '__main__':

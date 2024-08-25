@@ -444,6 +444,7 @@ class AutoencoderKL(pl.LightningModule):
         print(f"Restored from {path}")
 
     def encode(self, x):
+        # x = x.transpose(1,2)
         h = self.encoder(x)
         moments = self.quant_conv(h)
         posterior = DiagonalGaussianDistribution(moments)

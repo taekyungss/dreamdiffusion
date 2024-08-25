@@ -344,7 +344,8 @@ class DDPM(pl.LightningModule):
         return self.p_losses(x, t, *args, **kwargs)
 
     def get_input(self, batch, k):
-        x = batch[k]
+        # 원래 k 값은 'image' -> 새로운 dataloader는 batch[0] : eeg data , batch[1] : image data
+        x = batch[1]
         if len(x.shape) == 3:
             x = x[..., None]
         x = rearrange(x, 'b h w c -> b c h w')
@@ -405,7 +406,7 @@ class DDPM(pl.LightningModule):
                     if count >= limit:
                         break
                 latent = item[0] # fmri embedding
-                gt_image = rearrange(item[1], 'h w c -> 1 h w c') # h w c
+                gt_image = rearrange(item[1], 'h w c -> 1 c h w') # h w c
                 print(f"rendering {num_samples} examples in {ddim_steps} steps.")
                 # c = model.get_learned_conditioning(repeat(latent, 'h w -> c h w', c=num_samples).to(self.device))
                 c, re_latent = model.get_learned_conditioning(repeat(latent, 'h w -> c h w', c=num_samples).to(self.device))
@@ -416,11 +417,13 @@ class DDPM(pl.LightningModule):
                                                 verbose=False,
                                                 generator=None)
 
-                x_samples_ddim = model.decode_first_stage(samples_ddim)
-                x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0,min=0.0, max=1.0)
-                gt_image = torch.clamp((gt_image+1.0)/2.0,min=0.0, max=1.0)
+                x_samples_ddim = model.decode_first_stage(samples_ddim) #[3,3,512,512]
+                x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0,min=0.0, max=1.0) #[3,3,512,512]
+                gt_image = torch.clamp((gt_image+1.0)/2.0,min=0.0, max=1.0) #[1,3,512,512]
                 
                 all_samples.append(torch.cat([gt_image.detach().cpu(), x_samples_ddim.detach().cpu()], dim=0)) # put groundtruth at first
+                # all_samples[0] -> 4,3,512,512
+        
         # size = (batch_size, C, H, W)
         # display as grid
         grid = torch.stack(all_samples, 0)
@@ -584,6 +587,7 @@ class LatentDiffusion(DDPM):
                 scale_factor=1.0,
                 scale_by_std=False,
                 *args, **kwargs):
+                
         self.num_timesteps_cond = default(num_timesteps_cond, 1)
         self.scale_by_std = scale_by_std
         assert self.num_timesteps_cond <= kwargs['timesteps']
@@ -743,6 +747,8 @@ class LatentDiffusion(DDPM):
             c, re_latent = self.cond_stage_model.encode(c)
             # c = self.cond_stage_model.encode(c)
         else:
+            # 여기 통과함
+            # c = [3,77,768] / re_latent = [3,128,440]
             c, re_latent = self.cond_stage_model(c)
             # c = self.cond_stage_model(c)
         # return c
@@ -838,7 +844,7 @@ class LatentDiffusion(DDPM):
         return fold, unfold, normalization, weighting
 
     @torch.no_grad()
-    def get_input(self, batch, k, return_first_stage_outputs=False, force_c_encode=False,
+    def get_input(self, batch, k=1, return_first_stage_outputs=False, force_c_encode=False,
                   cond_key=None, return_original_cond=False, bs=None):
         x = super().get_input(batch, k)
         if bs is not None:
@@ -858,7 +864,7 @@ class LatentDiffusion(DDPM):
                 cond_key = self.cond_stage_key
             if cond_key != self.first_stage_key:
                 if cond_key in ['caption', 'coordinates_bbox','fmri', 'eeg']:
-                    xc = batch[cond_key]
+                    xc = batch[0]
                 elif cond_key == 'class_label':
                     xc = batch
                 else:
@@ -893,7 +899,7 @@ class LatentDiffusion(DDPM):
             if self.use_positional_encodings:
                 pos_x, pos_y = self.compute_latent_shifts(batch)
                 c = {'pos_x': pos_x, 'pos_y': pos_y}
-        out = [z, c , batch['label'], batch['image_raw']]
+        out = [z, c , batch[2], batch[3]]
         if return_first_stage_outputs:
             xrec = self.decode_first_stage(z)
             out.extend([x, xrec])
@@ -1180,8 +1186,7 @@ class LatentDiffusion(DDPM):
 
         loss_simple = self.get_loss(model_output, target, mean=False).mean([1, 2, 3])
         loss_dict.update({f'{prefix}/loss_simple': loss_simple.mean()})
-
-        logvar_t = self.logvar[t].to(self.device)
+        logvar_t = self.logvar[t.to('cpu')].to(self.device)
         loss = loss_simple / torch.exp(logvar_t) + logvar_t
         # loss = loss_simple / torch.exp(self.logvar) + self.logvar
         if self.learn_logvar:
@@ -1719,7 +1724,7 @@ class EEGClassifier(pl.LightningModule):
     def get_input(self, batch, k='image', return_first_stage_outputs=False, force_c_encode=False,
                   cond_key=None, return_original_cond=False, bs=None):
         # x = super().get_input(batch, k)
-        x = batch['image']
+        x = batch[1]
         if bs is not None:
             x = x[:bs]
         x = x.to(self.device)
@@ -1729,7 +1734,7 @@ class EEGClassifier(pl.LightningModule):
         # print(cond_key)
         # print(self.cond_stage_key)
         # print(cond_key)
-        xc = batch['eeg']
+        xc = batch[0]
         c = xc
         # if self.model.conditioning_key is not None:
         #     if cond_key is None:
@@ -1771,7 +1776,7 @@ class EEGClassifier(pl.LightningModule):
         #     if self.use_positional_encodings:
         #         pos_x, pos_y = self.compute_latent_shifts(batch)
         #         c = {'pos_x': pos_x, 'pos_y': pos_y}
-        out = [x, c , batch['label'], batch['image_raw']]
+        out = [x, c , batch[2], batch[3]]
         # if return_first_stage_outputs:
         #     xrec = self.decode_first_stage(z)
         #     out.extend([x, xrec])

@@ -63,7 +63,9 @@ class cond_stage_model(nn.Module):
 
     def forward(self, x):
         # n, c, w = x.shape
+        # latent_crossattn = [3,440,128]
         latent_crossattn = self.encoder(x)
+        # latent_return = [3,77,440]
         latent_return = latent_crossattn.transpose(1,2)
         if self.global_pool == False:
             latent_crossattn = self.channel_mapper(latent_return)
@@ -148,8 +150,9 @@ class eLDM:
         print(f'batch_size is: {bs1}')
 
         
-        dataloader = DataLoader(dataset, batch_size=bs1,shuffle=True)
-        valid_loader = DataLoader(valid_dataset, batch_size=bs1,shuffle=True)
+        train_loader = DataLoader(dataset, batch_size=bs1,pin_memory=False, shuffle=True)
+        valid_loader = DataLoader(valid_dataset, batch_size=bs1,pin_memory=False, shuffle=True)
+
         self.model.unfreeze_whole_model()
         self.model.freeze_first_stage()
         # self.model.freeze_whole_model()
@@ -159,7 +162,7 @@ class eLDM:
         self.model.train_cond_stage_only = True
         self.model.eval_avg = config.eval_avg
         #  create_trainer(config.num_epoch, config.precision, config.accumulate_grad, config.logger, check_val_every_n_epoch=2)
-        trainers.fit(self.model, dataloader, val_dataloaders=valid_loader)
+        trainers.fit(self.model, train_loader, val_dataloaders=valid_loader)
 
         self.model.unfreeze_whole_model()
 
@@ -200,8 +203,8 @@ class eLDM:
                     if count >= limit:
                         break
                 # print(item)
-                latent = item['eeg']
-                gt_image = rearrange(item['image'], 'h w c -> 1 c h w') # h w c
+                latent = item[0]
+                gt_image = rearrange(item[1], 'h w c -> 1 c h w') # h w c
                 print(f"rendering {num_samples} examples in {ddim_steps} steps.")
                 # assert latent.shape[-1] == self.fmri_latent_dim, 'dim error'
 
@@ -218,6 +221,8 @@ class eLDM:
                 gt_image = torch.clamp((gt_image+1.0)/2.0, min=0.0, max=1.0)
 
                 all_samples.append(torch.cat([gt_image, x_samples_ddim.detach().cpu()], dim=0)) # put groundtruth at first
+                
+                
                 if output_path is not None and shouldSave == True:
                     samples_t = (255. * torch.cat([gt_image, x_samples_ddim.detach().cpu()], dim=0).numpy()).astype(np.uint8)
                     for copy_idx, img_t in enumerate(samples_t):
