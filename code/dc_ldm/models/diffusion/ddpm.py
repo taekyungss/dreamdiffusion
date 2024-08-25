@@ -899,7 +899,7 @@ class LatentDiffusion(DDPM):
             if self.use_positional_encodings:
                 pos_x, pos_y = self.compute_latent_shifts(batch)
                 c = {'pos_x': pos_x, 'pos_y': pos_y}
-        out = [z, c , batch[2], batch[1]]
+        out = [z, c , batch[2], batch[3]]
         if return_first_stage_outputs:
             xrec = self.decode_first_stage(z)
             out.extend([x, xrec])
@@ -1724,7 +1724,7 @@ class EEGClassifier(pl.LightningModule):
     def get_input(self, batch, k='image', return_first_stage_outputs=False, force_c_encode=False,
                   cond_key=None, return_original_cond=False, bs=None):
         # x = super().get_input(batch, k)
-        x = batch['image']
+        x = batch[1]
         if bs is not None:
             x = x[:bs]
         x = x.to(self.device)
@@ -1734,7 +1734,7 @@ class EEGClassifier(pl.LightningModule):
         # print(cond_key)
         # print(self.cond_stage_key)
         # print(cond_key)
-        xc = batch['eeg']
+        xc = batch[0]
         c = xc
         # if self.model.conditioning_key is not None:
         #     if cond_key is None:
@@ -1776,7 +1776,7 @@ class EEGClassifier(pl.LightningModule):
         #     if self.use_positional_encodings:
         #         pos_x, pos_y = self.compute_latent_shifts(batch)
         #         c = {'pos_x': pos_x, 'pos_y': pos_y}
-        out = [x, c , batch['label'], batch['image_raw']]
+        out = [x, c , batch[2], batch[3]]
         # if return_first_stage_outputs:
         #     xrec = self.decode_first_stage(z)
         #     out.extend([x, xrec])

@@ -23,12 +23,15 @@ from einops import rearrange
 
 
 class EEGDataset(Dataset):
-    def __init__(self, eegs, images, labels, n_fft=64, win_length=64, hop_length=16):
+    def __init__(self, eegs, images, img, labels, n_fft=64, win_length=64, hop_length=16):
         self.eegs         = eegs
         self.images       = images
         self.labels       = labels
         self.norm_max     = torch.max(self.eegs)
         self.norm_min     = torch.min(self.eegs)
+        self.img_raw = img
+        self.processor = AutoProcessor.from_pretrained("openai/clip-vit-large-patch14")
+
 
     def __getitem__(self, index):
         eeg    = self.eegs[index]
@@ -37,7 +40,11 @@ class EEGDataset(Dataset):
         image  = self.images[index]
         image = rearrange(image, 'c h w -> h w c')
         label  = self.labels[index]
-        return eeg, image, label
+        img_raw = self.img_raw[index]
+        img_raw = np.array(img_raw)/255.0
+        img_raw = self.processor(images = img_raw, return_tensors='pt')
+        img_raw['pixel_values'] = img_raw['pixel_values'].squeeze(0)
+        return eeg, image, label, img_raw
 
     def normalize_data(self, data):
         return (( data - self.norm_min ) / (self.norm_max - self.norm_min))
@@ -45,84 +52,6 @@ class EEGDataset(Dataset):
     def __len__(self):
         return len(self.eegs)
 
-
-# class EEGImageNetDataset(Dataset):
-#     def __init__(self, args, transform=None):
-#         self.dataset_dir = args.dataset_dir
-#         self.transform = transform
-#         loaded = torch.load(os.path.join(args.dataset_dir, "EEG-ImageNet.pth"))
-#         self.labels = loaded["labels"]
-#         self.images = loaded["images"]
-#         if args.subject != -1:
-#             chosen_data = [loaded['dataset'][i] for i in range(len(loaded['dataset'])) if
-#                            loaded['dataset'][i]['subject'] == args.subject]
-#         else:
-#             chosen_data = loaded['dataset']
-#         if args.granularity == 'coarse':
-#             self.data = [i for i in chosen_data if i['granularity'] == 'coarse']
-#         elif args.granularity == 'all':
-#             self.data = chosen_data
-#         else:
-#             fine_num = int(args.granularity[-1])
-#             fine_category_range = np.arange(8 * fine_num, 8 * fine_num + 8)
-#             self.data = [i for i in chosen_data if
-#                          i['granularity'] == 'fine' and self.labels.index(i['label']) in fine_category_range]
-
-#         # 실제로 이미지가 존재하는 데이터만 남김
-#         self.data = []
-#         for item in chosen_data:
-#             image_name = item["image"]
-#             image_path = os.path.join(self.dataset_dir, "imageNet", image_name.split('_')[0], image_name)
-#             if os.path.exists(image_path):
-#                 self.data.append(item)
-
-#         self.use_frequency_feat = False
-#         self.frequency_feat = None
-#         self.use_image_label = True
-#         self.imagenet = os.path.join(args.dataset_dir, "imageNet")
-#         self.processor = AutoProcessor.from_pretrained("openai/clip-vit-large-patch14")
-
-#     def __getitem__(self, index):
-#         if self.use_image_label:
-#             path = self.data[index]["image"]
-#             label_path = os.path.join(self.dataset_dir, "imageNet", path.split('_')[0], path)
-#             label = None
-#             try:
-#                 label = Image.open(label_path)
-#             except FileNotFoundError:
-#                 return self.__getitem__(index + 1)
-            
-#             image_name = self.data[index]["image"]
-#             image_path = os.path.join(self.imagenet, image_name.split('_')[0], image_name)
-#             image_raw = Image.open(image_path).convert('RGB')
-
-#             image_raw = self.processor(images=image_raw, return_tensors="pt")
-#             image_raw['pixel_values'] = image_raw['pixel_values'].squeeze(0)
-
-#             if label.mode == 'L':
-#                 label = label.convert('RGB')
-
-#             if self.transform is not None:
-#                 image = self.transform(image_raw['pixel_values'])
-
-#             else:
-#                 image = image_raw['pixel_values']
-
-#             label = self.labels.index(self.data[index]["label"])
-#         else:
-#             return None
-
-#         if self.use_frequency_feat:
-#             feat = self.frequency_feat[index]
-#         else:
-#             eeg_data = self.data[index]["eeg_data"].float()
-#             feat = eeg_data[:, 40:440]
-    
-#         return {'eeg': feat, 'label': label, 'image': image, 'image_raw': image_raw}
-
-
-#     def __len__(self):
-#         return len(self.data)
 
 
 def identity(x):

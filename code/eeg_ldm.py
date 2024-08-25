@@ -140,6 +140,7 @@ def main(config):
 
     x_train_eeg = []
     x_train_image = []
+    x_train_raw_img = []
     labels = []
 
     batch_size     = config2.batch_size
@@ -152,6 +153,7 @@ def main(config):
     for i in tqdm(natsorted(os.listdir(base_path + train_path))):
         loaded_array = np.load(base_path + train_path + i, allow_pickle=True)
         x_train_eeg.append(loaded_array[1].T)
+        x_train_raw_img.append(loaded_array[0])
         img = cv2.resize(loaded_array[0], (512, 512))
         img = (cv2.cvtColor(img, cv2.COLOR_BGR2RGB) - 127.5) / 127.5
         img = np.transpose(img, (2, 0, 1))
@@ -167,7 +169,7 @@ def main(config):
     x_train_image = torch.from_numpy(x_train_image).float().to(device)
     train_labels  = torch.from_numpy(train_labels).long().to(device)
 
-    train_data       = EEGDataset(x_train_eeg, x_train_image, train_labels)
+    train_data       = EEGDataset(x_train_eeg, x_train_image, x_train_raw_img, train_labels)
     train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, pin_memory=False, drop_last=True)
 
     # my loader
@@ -177,11 +179,13 @@ def main(config):
 
     x_val_eeg = []
     x_val_image = []
+    x_val_raw_img = []
     label_Val = []
 
     for i in tqdm(natsorted(os.listdir(base_path + validation_path))):
         loaded_array = np.load(base_path + validation_path + i, allow_pickle=True)
         x_val_eeg.append(loaded_array[1].T)
+        x_val_raw_img.append(loaded_array[0])
         img = cv2.resize(loaded_array[0], (512, 512))
         img = (cv2.cvtColor(img, cv2.COLOR_BGR2RGB) - 127.5) / 127.5
         img = np.transpose(img, (2, 0, 1))
@@ -196,7 +200,7 @@ def main(config):
     x_val_image = torch.from_numpy(x_val_image).float().to(device)
     val_labels  = torch.from_numpy(val_labels).long().to(device)
 
-    val_data       = EEGDataset(x_val_eeg, x_val_image, val_labels)
+    val_data       = EEGDataset(x_val_eeg, x_val_image,x_val_raw_img, val_labels)
     val_dataloader = DataLoader(val_data, batch_size=batch_size, shuffle=False, pin_memory=False, drop_last=True)
 
     # prepare pretrained mbm 
