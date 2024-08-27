@@ -27,11 +27,11 @@ import cv2
 
 
 def wandb_init(config, output_path):
-    # wandb.init( project='dreamdiffusion',
-    #             group="stageB_dc-ldm",
-    #             anonymous="allow",
-    #             config=config,
-    #             reinit=True)
+    wandb.init( project='eeg_diffusion',
+                group="stageB_dc-ldm",
+                anonymous="allow",
+                config=config,
+                reinit=True)
     create_readme(config, output_path)
 
 def wandb_finish():

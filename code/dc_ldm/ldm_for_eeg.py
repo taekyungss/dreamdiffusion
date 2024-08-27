@@ -27,6 +27,15 @@ def clip_loss(similarity: torch.Tensor) -> torch.Tensor:
     image_loss = contrastive_loss(similarity, dim=1)
     return (caption_loss + image_loss) / 2.0
 
+class Projection(nn.Module):
+    def __init__(self, input_dim):
+        super(Projection, self).__init__()
+        self.linear = nn.Linear(input_dim, 1)
+
+    def forward(self, x):
+        x_proj = self.linear(x.transpose(1,2))
+        x_proj = x_proj.squeeze(-1)
+        return x_proj
 
 class cond_stage_model(nn.Module):
     # cond_dim=768
@@ -39,7 +48,7 @@ class cond_stage_model(nn.Module):
         self.encoder = model
 
         if clip_tune:
-            self.mapping = mapping()
+            self.projection_layer = Projection(input_dim=77)
         if cls_tune:
             self.cls_net = classify_network()
         # self.fmri_seq_len = model.num_patches -> (time_len//patch_size) 1024
@@ -81,7 +90,9 @@ class cond_stage_model(nn.Module):
 
     def get_clip_loss(self, x, image_embeds):
         # image_embeds = self.image_embedder(image_inputs)
-        target_emb = self.mapping(x)
+        # target_emb = self.mapping(x)
+
+        target_emb = self.projection_layer(x)     
         # similarity_matrix = nn.functional.cosine_similarity(target_emb.unsqueeze(1), image_embeds.unsqueeze(0), dim=2)
         # loss = clip_loss(similarity_matrix)
         loss = 1 - torch.cosine_similarity(target_emb, image_embeds, dim=-1).mean()

@@ -231,7 +231,8 @@ class Config_Generative_Model:
         # finetune parameters
         # memeory 문제로 batch 5->1
         self.batch_size = 8
-        self.lr = 5.3e-5
+        # self.lr = 5.3e-5
+        self.lr = 1e-4
         self.num_epoch = 500
         
         self.precision = 32

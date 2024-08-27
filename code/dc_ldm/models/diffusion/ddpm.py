@@ -573,6 +573,9 @@ class DDPM(pl.LightningModule):
         return opt
 
 
+
+
+
 class LatentDiffusion(DDPM):
     """main class"""
     def __init__(self,
@@ -741,6 +744,8 @@ class LatentDiffusion(DDPM):
             raise NotImplementedError(f"encoder_posterior of type '{type(encoder_posterior)}' not yet implemented")
         return self.scale_factor * z
 
+
+
     def get_learned_conditioning(self, c):
         # self.cond_stage_model.eval()
         if hasattr(self.cond_stage_model, 'encode') and callable(self.cond_stage_model.encode):
@@ -750,8 +755,7 @@ class LatentDiffusion(DDPM):
             # 여기 통과함
             # c = [3,77,768] / re_latent = [3,128,440]
             c, re_latent = self.cond_stage_model(c)
-            # c = self.cond_stage_model(c)
-        # return c
+            # c : [3,768]
         return c, re_latent
 
     def meshgrid(self, h, w):
@@ -1033,13 +1037,7 @@ class LatentDiffusion(DDPM):
 
     def shared_step(self, batch, **kwargs):
         self.freeze_first_stage()
-        # print('share step\'s get input')
         x, c, label, image_raw = self.get_input(batch, self.first_stage_key)
-        # print('get input shape')
-        # print('x.shape')
-        # print(x.shape)
-        # print('c.shape')
-        # print(c.shape)
         if self.return_cond:
             loss, cc = self(x, c, label, image_raw)
             return loss, cc
@@ -1048,18 +1046,12 @@ class LatentDiffusion(DDPM):
             return loss
 
     def forward(self, x, c, label, image_raw, *args, **kwargs):
-        # print(self.num_timesteps)
         t = torch.randint(0, self.num_timesteps, (x.shape[0],), device=self.device).long()
-        # print('t.shape')
-        # print(t.shape)
         if self.model.conditioning_key is not None:
             assert c is not None
             imgs = c
             if self.cond_stage_trainable:
-                # c = self.get_learned_conditioning(c)
                 c, re_latent = self.get_learned_conditioning(c)
-                # print('c.shape')
-                # print(c.shape)
 
         prefix = 'train' if self.training else 'val'
         loss, loss_dict = self.p_losses(x, c, t, *args, **kwargs)
@@ -1067,7 +1059,7 @@ class LatentDiffusion(DDPM):
         # rencon = self.cond_stage_model.recon(re_latent)
         if self.clip_tune:
             image_embeds = self.image_embedder(image_raw)
-            loss_clip = self.cond_stage_model.get_clip_loss(re_latent, image_embeds)
+            loss_clip = self.cond_stage_model.get_clip_loss(c, image_embeds)
         # loss_recon = self.recon_loss(imgs, rencon)
         # loss_cls = self.cls_loss(label, pre_cls)
             loss += loss_clip
@@ -1617,21 +1609,9 @@ class EEGClassifier(pl.LightningModule):
         self.validation_count = 0
         
     def forward(self, x, c, label, image_raw, *args, **kwargs):
-        # print(self.num_timesteps)
-        # t = torch.randint(0, self.num_timesteps, (x.shape[0],), device=self.device).long()
-        # print('t.shape')
-        # print(t.shape)
-        # if self.model.conditioning_key is not None:
-        #     assert c is not None
-        #     imgs = c
-        #     if self.cond_stage_trainable:
-                # c = self.get_learned_conditioning(c)
         c, re_latent = self.get_learned_conditioning(c)
-                # print('c.shape')
-                # print(c.shape)
 
         prefix = 'train' if self.training else 'val'
-        # loss, loss_dict = self.p_losses(x, c, t, *args, **kwargs)
         pre_cls = self.cond_stage_model.get_cls(re_latent)
 
         loss = self.cls_loss(label, pre_cls)
