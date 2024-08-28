@@ -14,7 +14,7 @@ processed/
 DreamDiffuion/results/eeg_pretrain/
 exps/
 *.json
-
+weights/
 /Data/summer24/DreamDiffusion/code/processed
 wandb/
 

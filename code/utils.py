@@ -82,7 +82,7 @@ def generate_images(generative_model, eeg_latents_dataset_train, eeg_latents_dat
                 config.ddim_steps, config.HW, 3) # generate 3
     grid_imgs = Image.fromarray(grid.astype(np.uint8))
     grid_imgs.save(os.path.join(config.output_path, 'samples_train.png'))
-    # wandb.log({'summary/samples_train': wandb.Image(grid_imgs)})
+    wandb.log({'summary/samples_train': wandb.Image(grid_imgs)})
 
     grid, samples = generative_model.generate(eeg_latents_dataset_test, config.num_samples,
                 config.ddim_steps, config.HW, 3)
@@ -94,10 +94,10 @@ def generate_images(generative_model, eeg_latents_dataset_train, eeg_latents_dat
             Image.fromarray(img).save(os.path.join(config.output_path,
                             f'./test{sp_idx}-{copy_idx}.png'))
 
-    # wandb.log({f'summary/samples_test': wandb.Image(grid_imgs)})
+    wandb.log({f'summary/samples_test': wandb.Image(grid_imgs)})
 
     metric, metric_list = get_eval_metric(samples, avg=config.eval_avg)
     metric_dict = {f'summary/pair-wise_{k}':v for k, v in zip(metric_list[:-2], metric[:-2])}
     metric_dict[f'summary/{metric_list[-2]}'] = metric[-2]
     metric_dict[f'summary/{metric_list[-1]}'] = metric[-1]
-    # wandb.log(metric_dict)
+    wandb.log(metric_dict)

@@ -28,6 +28,7 @@ from dc_ldm.models.diffusion.plms import PLMSSampler
 from PIL import Image
 import torch.nn.functional as F
 from eval_metrics import get_similarity_metric
+import wandb
 
 __conditioning_keys__ = {'concat': 'c_concat',
                          'crossattn': 'c_crossattn',
@@ -1060,32 +1061,22 @@ class LatentDiffusion(DDPM):
         if self.clip_tune:
             image_embeds = self.image_embedder(image_raw)
             loss_clip = self.cond_stage_model.get_clip_loss(c, image_embeds)
-        # loss_recon = self.recon_loss(imgs, rencon)
-        # loss_cls = self.cls_loss(label, pre_cls)
             loss += loss_clip
-        # loss += loss_cls # loss_recon +  #(self.original_elbo_weight * loss_vlb)
-        # loss_dict.update({f'{prefix}/loss_recon': loss_recon})
-        # loss_dict.update({f'{prefix}/loss_cls': loss_cls})
             loss_dict.update({f'{prefix}/loss_clip': loss_clip})
+
         if self.cls_tune:
             pre_cls = self.cond_stage_model.get_cls(re_latent)
             loss_cls = self.cls_loss(label, pre_cls)
-            # image_embeds = self.image_embedder(image_raw)
-            # loss_clip = self.cond_stage_model.get_clip_loss(re_latent, image_embeds)
-        # loss_recon = self.recon_loss(imgs, rencon)
-        # loss_cls = self.cls_loss(label, pre_cls)
             loss += loss_cls
-        # loss += loss_cls # loss_recon +  #(self.original_elbo_weight * loss_vlb)
-        # loss_dict.update({f'{prefix}/loss_recon': loss_recon})
-        # loss_dict.update({f'{prefix}/loss_cls': loss_cls})
             loss_dict.update({f'{prefix}/loss_cls': loss_cls})
-                # if self.return_cond:
-                    # return self.p_losses(x, c, t, *args, **kwargs), c
-        # return self.p_losses(x, c, t, *args, **kwargs)
+
+
         if self.return_cond:
             return loss, loss_dict, c
+
         return loss, loss_dict
-    # def recon_loss(self, )
+
+
     def recon_loss(self, imgs, pred):
         """
         imgs: [N, 1, num_voxels]

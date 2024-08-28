@@ -207,8 +207,8 @@ class Config_Generative_Model:
     def __init__(self):
         # project parameters
         self.seed = 2022
-        self.root_path = '../DreamDiffusion/'
-        self.output_path = '../DreamDiffusion/exps/'
+        self.root_path = './DreamDiffusion/'
+        self.output_path = './DreamDiffusion/exps/'
         self.eeg_signals_path = os.path.join(self.root_path, 'data/eeg_5_95_std.pth')
         self.splits_path = os.path.join(self.root_path, 'data/block_splits_by_image_single.pth')
         # self.splits_path = os.path.join(self.root_path, 'datasets/block_splits_by_image_all.pth')
@@ -257,8 +257,8 @@ class Config_Cls_Model:
     def __init__(self):
         # project parameters
         self.seed = 2022
-        self.root_path = '../DreamDiffusion/'
-        self.output_path = '../DreamDiffusion/exps/'
+        self.root_path = './DreamDiffusion/'
+        self.output_path = './DreamDiffusion/exps/'
 
         self.eeg_signals_path = os.path.join('/Data/summer24/DreamDiffusion/datasets/eeg_5_95_std.pth')
         # self.eeg_signals_path = os.path.join(self.root_path, 'datasets/eeg_14_70_std.pth')
