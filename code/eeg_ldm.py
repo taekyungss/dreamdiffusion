@@ -187,7 +187,7 @@ def main(config):
         x_val_eeg.append(loaded_array[1].T)
         x_val_raw_img.append(loaded_array[0])
         img = cv2.resize(loaded_array[0], (512, 512))
-        img = (cv2.cvtColor(img, cv2.COLOR_BGR2RGB) - 127.5) / 127.5
+        img =((img) - 127.5) / 127.5 
         img = np.transpose(img, (2, 0, 1))
         x_val_image.append(img)
         label_Val.append(loaded_array[2])
