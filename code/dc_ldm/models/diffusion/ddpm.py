@@ -693,6 +693,21 @@ class LatentDiffusion(DDPM):
         for param in self.first_stage_model.parameters():
             param.requires_grad = True
 
+    def unfreeze_cond_stage_only(self):
+        self.first_stage_model.trainable = False
+        cond_parms = [p for n, p in self.named_parameters() 
+                    if 'attn2' in n or 'time_embed_condtion' in n or 'norm2' in n ]
+        
+        cond_parameters  = [p for n, p in self.cond_stage_model.named_parameters() 
+                            if 'projection_layer' in n or 'channel_mapper' in n or 'dim_mapper' in n]
+
+        params = cond_parms + cond_parameters
+
+        for p in params:
+            p.requires_grad = True
+
+
+
     def freeze_whole_model(self):
         self.first_stage_model.trainable = False
         for param in self.parameters():
@@ -1495,20 +1510,95 @@ class LatentDiffusion(DDPM):
                 return {key: log[key] for key in return_keys}
         return log
 
+    # def configure_optimizers(self):
+    #     lr = self.learning_rate
+    #     if self.train_cond_stage_only:
+    #         print(f"{self.__class__.__name__}: Only optimizing conditioner params!")
+    #         # params = list(self.model.parameters())
+
+    #         # for p in params:
+    #         #     p.requires_grad = False
+
+    #         # cond_parms = [p for n, p in self.named_parameters() 
+    #         #         if 'attn2' in n or 'time_embed_condtion' in n or 'norm2' in n]
+    #         # # cond_parms = [p for n, p in self.named_parameters() 
+    #         #         # if 'time_embed_condtion' in n]
+    #         # # cond_parms = []
+            
+    #         # for p in cond_parms:
+    #         #     p.requires_grad = True
+
+    #     # cond_parms = [p for n, p in self.named_parameters() 
+    #     #             if 'attn2' in n or 'time_embed_condtion' in n or 'norm2' in n ]
+        
+    #     # cond_parameters  = [p for n, p in self.cond_stage_model.named_parameters() 
+    #     #                     if 'projection_layer' in n or 'channel_mapper' in n or 'dim_mapper' in n]
+
+    #     # params = cond_parms + cond_parameters
+
+    #     for p in params:
+    #         p.requires_grad = True
+    #         params = []
+    #         for name, parameter in self.model.named_parameters():
+    #             if 'attn2' in name or 'time_embed_condtion' in name or 'norm2' in name:
+    #                 parameter.requires_grad = True
+    #             else:
+    #                 parameter.requires_grad = False
+    #             params.append(parameter)
+
+    #         for n, parameter in self.cond_stage_model.named_parameters():
+    #             if 'projection_layer' in n or 'channel_mapper' in n or 'dim_mapper' in n:
+    #                 parameter.requires_grad = True
+    #             else:
+    #                 parameter.requires_grad = False
+    #             params.append(parameter)
+
+    #     else:
+    #         params = list(self.model.parameters() )
+    #         if self.cond_stage_trainable:
+    #             print(f"{self.__class__.__name__}: Also optimizing conditioner params!")
+    #             params = params + list(self.cond_stage_model.parameters())
+    #         if self.learn_logvar:
+    #             print('Diffusion model optimizing logvar')
+    #             params.append(self.logvar)
+
+    #     opt = torch.optim.AdamW(params, lr=lr)
+
+    #     if self.use_scheduler:
+    #         assert 'target' in self.scheduler_config
+    #         scheduler = instantiate_from_config(self.scheduler_config)
+
+    #         print("Setting up LambdaLR scheduler...")
+    #         scheduler = [
+    #             {
+    #                 'scheduler': LambdaLR(opt, lr_lambda=scheduler.schedule),
+    #                 'interval': 'step',
+    #                 'frequency': 1
+    #             }]
+    #         return [opt], scheduler
+            
+    #     return opt
+
     def configure_optimizers(self):
         lr = self.learning_rate
+        
         if self.train_cond_stage_only:
             print(f"{self.__class__.__name__}: Only optimizing conditioner params!")
-            cond_parms = [p for n, p in self.named_parameters() 
-                    if 'attn2' in n or 'time_embed_condtion' in n or 'norm2' in n]
-            # cond_parms = [p for n, p in self.named_parameters() 
-                    # if 'time_embed_condtion' in n]
-            # cond_parms = []
-            
-            params = list(self.cond_stage_model.parameters()) + cond_parms
-        
-            for p in params:
-                p.requires_grad = True
+
+            params = []
+            for name, parameter in self.model.named_parameters():
+                if 'attn2' in name or 'time_embed_condtion' in name or 'norm2' in name:
+                    parameter.requires_grad = True
+                    params.append(parameter)
+                else:
+                    parameter.requires_grad = False
+
+            for n, parameter in self.cond_stage_model.named_parameters():
+                if 'projection_layer' in n or 'channel_mapper' in n or 'dim_mapper' in n:
+                    parameter.requires_grad = True
+                    params.append(parameter)
+                else:
+                    parameter.requires_grad = False
 
         else:
             params = list(self.model.parameters())
@@ -1533,8 +1623,9 @@ class LatentDiffusion(DDPM):
                     'frequency': 1
                 }]
             return [opt], scheduler
-            
+
         return opt
+
 
     @torch.no_grad()
     def to_rgb(self, x):
@@ -1575,121 +1666,121 @@ class DiffusionWrapper(pl.LightningModule):
         return out
 
 
-class EEGClassifier(pl.LightningModule):
-    """main class"""
-    def __init__(self,
-                first_stage_config,
-                cond_stage_config,
-                num_timesteps_cond=None,
-                cond_stage_key="image",
-                cond_stage_trainable=True,
-                concat_mode=True,
-                cond_stage_forward=None,
-                conditioning_key=None,
-                scale_factor=1.0,
-                scale_by_std=False,
-                *args, **kwargs):
-        super().__init__()
-        # self.use_scheduler = scheduler_config is not None
-        # if self.use_scheduler:
-        #     self.scheduler_config = scheduler_config
-        self.cond_stage_trainable = True
-        self.main_config = None
-        self.best_val = 0.0 
-        self.cond_stage_model = None
-        self.validation_count = 0
+# class EEGClassifier(pl.LightningModule):
+#     """main class"""
+#     def __init__(self,
+#                 first_stage_config,
+#                 cond_stage_config,
+#                 num_timesteps_cond=None,
+#                 cond_stage_key="image",
+#                 cond_stage_trainable=True,
+#                 concat_mode=True,
+#                 cond_stage_forward=None,
+#                 conditioning_key=None,
+#                 scale_factor=1.0,
+#                 scale_by_std=False,
+#                 *args, **kwargs):
+#         super().__init__()
+#         # self.use_scheduler = scheduler_config is not None
+#         # if self.use_scheduler:
+#         #     self.scheduler_config = scheduler_config
+#         self.cond_stage_trainable = True
+#         self.main_config = None
+#         self.best_val = 0.0 
+#         self.cond_stage_model = None
+#         self.validation_count = 0
         
-    def forward(self, x, c, label, image_raw, *args, **kwargs):
-        c, re_latent = self.get_learned_conditioning(c)
+#     def forward(self, x, c, label, image_raw, *args, **kwargs):
+#         c, re_latent = self.get_learned_conditioning(c)
 
-        prefix = 'train' if self.training else 'val'
-        pre_cls = self.cond_stage_model.get_cls(re_latent)
+#         prefix = 'train' if self.training else 'val'
+#         pre_cls = self.cond_stage_model.get_cls(re_latent)
 
-        loss = self.cls_loss(label, pre_cls)
+#         loss = self.cls_loss(label, pre_cls)
 
-        loss_dict = {}
-        loss_dict.update({f'{prefix}/loss_cls': loss})
-        # rencon = self.cond_stage_model.recon(re_latent)
-        if self.clip_tune:
-            image_embeds = self.image_embedder(image_raw)
-            loss_clip = self.cond_stage_model.get_clip_loss(re_latent, image_embeds)
-        # loss_recon = self.recon_loss(imgs, rencon)
+#         loss_dict = {}
+#         loss_dict.update({f'{prefix}/loss_cls': loss})
+#         # rencon = self.cond_stage_model.recon(re_latent)
+#         if self.clip_tune:
+#             image_embeds = self.image_embedder(image_raw)
+#             loss_clip = self.cond_stage_model.get_clip_loss(re_latent, image_embeds)
+#         # loss_recon = self.recon_loss(imgs, rencon)
         
-            loss += loss_clip
-        # loss += loss_cls # loss_recon +  #(self.original_elbo_weight * loss_vlb)
-        # loss_dict.update({f'{prefix}/loss_recon': loss_recon})
-        # loss_dict.update({f'{prefix}/loss_cls': loss_cls})
-            loss_dict.update({f'{prefix}/loss_clip': loss_clip})
-                # if self.return_cond:
-                    # return self.p_losses(x, c, t, *args, **kwargs), c
-        # return self.p_losses(x, c, t, *args, **kwargs)
-        # if self.return_cond:
-        #     return loss, loss_dict, c
-        return loss, loss_dict
+#             loss += loss_clip
+#         # loss += loss_cls # loss_recon +  #(self.original_elbo_weight * loss_vlb)
+#         # loss_dict.update({f'{prefix}/loss_recon': loss_recon})
+#         # loss_dict.update({f'{prefix}/loss_cls': loss_cls})
+#             loss_dict.update({f'{prefix}/loss_clip': loss_clip})
+#                 # if self.return_cond:
+#                     # return self.p_losses(x, c, t, *args, **kwargs), c
+#         # return self.p_losses(x, c, t, *args, **kwargs)
+#         # if self.return_cond:
+#         #     return loss, loss_dict, c
+#         return loss, loss_dict
 
-    def shared_step(self, batch):
-        x,c, label, image_raw  = self.get_input(batch)
-        loss, loss_dict = self(x,c, label, image_raw)
-        return loss, loss_dict
+#     def shared_step(self, batch):
+#         x,c, label, image_raw  = self.get_input(batch)
+#         loss, loss_dict = self(x,c, label, image_raw)
+#         return loss, loss_dict
 
-    def cls_loss(self, label, pred):
-        return torch.nn.CrossEntropyLoss()(pred, label)
+#     def cls_loss(self, label, pred):
+#         return torch.nn.CrossEntropyLoss()(pred, label)
 
-    def training_step(self, batch, batch_idx):
-        self.train()
-        self.cond_stage_model.train()  ###到底是在哪里训练的
+#     def training_step(self, batch, batch_idx):
+#         self.train()
+#         self.cond_stage_model.train()  ###到底是在哪里训练的
         
-        loss, loss_dict = self.shared_step(batch)
+#         loss, loss_dict = self.shared_step(batch)
 
-        self.log_dict(loss_dict, prog_bar=True,
-                    logger=True, on_step=False, on_epoch=True)
+#         self.log_dict(loss_dict, prog_bar=True,
+#                     logger=True, on_step=False, on_epoch=True)
 
-        # if self.use_scheduler:
-        #     lr = self.optimizers().param_groups[0]['lr']
-        #     self.log('lr_abs', lr, prog_bar=True, logger=True, on_step=False, on_epoch=True)
+#         # if self.use_scheduler:
+#         #     lr = self.optimizers().param_groups[0]['lr']
+#         #     self.log('lr_abs', lr, prog_bar=True, logger=True, on_step=False, on_epoch=True)
 
-        return loss
+#         return loss
 
-    def configure_optimizers(self):
-        lr = self.learning_rate
-        # if self.train_cond_stage_only:
-        #     print(f"{self.__class__.__name__}: Only optimizing conditioner params!")
-        #     cond_parms = [p for n, p in self.named_parameters() 
-        #             if 'attn2' in n or 'time_embed_condtion' in n or 'norm2' in n]
-        #     # cond_parms = [p for n, p in self.named_parameters() 
-        #             # if 'time_embed_condtion' in n]
-        #     # cond_parms = []
+#     def configure_optimizers(self):
+#         lr = self.learning_rate
+#         # if self.train_cond_stage_only:
+#         #     print(f"{self.__class__.__name__}: Only optimizing conditioner params!")
+#         #     cond_parms = [p for n, p in self.named_parameters() 
+#         #             if 'attn2' in n or 'time_embed_condtion' in n or 'norm2' in n]
+#         #     # cond_parms = [p for n, p in self.named_parameters() 
+#         #             # if 'time_embed_condtion' in n]
+#         #     # cond_parms = []
             
-        params = list(self.cond_stage_model.parameters()) # + cond_parms
+#         params = list(self.cond_stage_model.parameters()) # + cond_parms
         
-        for p in params:
-            p.requires_grad = True
+#         for p in params:
+#             p.requires_grad = True
 
-        # else:
-        #     params = list(self.model.parameters())
-        #     if self.cond_stage_trainable:
-        #         print(f"{self.__class__.__name__}: Also optimizing conditioner params!")
-        #         params = params + list(self.cond_stage_model.parameters())
-        #     if self.learn_logvar:
-        #         print('Diffusion model optimizing logvar')
-        #         params.append(self.logvar)
+#         # else:
+#         #     params = list(self.model.parameters())
+#         #     if self.cond_stage_trainable:
+#         #         print(f"{self.__class__.__name__}: Also optimizing conditioner params!")
+#         #         params = params + list(self.cond_stage_model.parameters())
+#         #     if self.learn_logvar:
+#         #         print('Diffusion model optimizing logvar')
+#         #         params.append(self.logvar)
 
-        opt = torch.optim.AdamW(params, lr=lr)
+#         opt = torch.optim.AdamW(params, lr=lr)
 
-        # if self.use_scheduler:
-        #     assert 'target' in self.scheduler_config
-        #     scheduler = instantiate_from_config(self.scheduler_config)
+#         # if self.use_scheduler:
+#         #     assert 'target' in self.scheduler_config
+#         #     scheduler = instantiate_from_config(self.scheduler_config)
 
-        #     print("Setting up LambdaLR scheduler...")
-        #     scheduler = [
-        #         {
-        #             'scheduler': LambdaLR(opt, lr_lambda=scheduler.schedule),
-        #             'interval': 'step',
-        #             'frequency': 1
-        #         }]
-        #     return [opt], scheduler
+#         #     print("Setting up LambdaLR scheduler...")
+#         #     scheduler = [
+#         #         {
+#         #             'scheduler': LambdaLR(opt, lr_lambda=scheduler.schedule),
+#         #             'interval': 'step',
+#         #             'frequency': 1
+#         #         }]
+#         #     return [opt], scheduler
             
-        return opt
+#         return opt
 
     @torch.no_grad()
     def get_input(self, batch, k='image', return_first_stage_outputs=False, force_c_encode=False,

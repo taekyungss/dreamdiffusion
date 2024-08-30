@@ -1,5 +1,3 @@
-# stage 2 Fine-tuning with limited EEG image pairs & Align EEG, text and image spaces
-
 import numpy as np
 import wandb
 import torch
@@ -164,15 +162,18 @@ class eLDM:
         train_loader = DataLoader(dataset, batch_size=bs1,pin_memory=False, shuffle=True)
         valid_loader = DataLoader(valid_dataset, batch_size=bs1,pin_memory=False, shuffle=True)
 
-        self.model.unfreeze_whole_model()
-        self.model.freeze_first_stage()
-        # self.model.freeze_whole_model()
+        self.model.freeze_whole_model()
+        self.model.freeze_diffusion_model()
+
+        self.model.unfreeze_cond_stage_only()
+        # self.model.freeze_first_stage()
         # self.model.unfreeze_cond_stage()
+        # self.model.train_cond_stage_only()
 
         self.model.learning_rate = lr1
         self.model.train_cond_stage_only = True
         self.model.eval_avg = config.eval_avg
-        #  create_trainer(config.num_epoch, config.precision, config.accumulate_grad, config.logger, check_val_every_n_epoch=2)
+        #  create_trainers(config.num_epoch, config.precision, config.accumulate_grad, config.logger, check_val_every_n_epoch=2)
         trainers.fit(self.model, train_loader, val_dataloaders=valid_loader)
 
         self.model.unfreeze_whole_model()
