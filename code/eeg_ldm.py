@@ -27,11 +27,11 @@ import cv2
 
 
 def wandb_init(config, output_path):
-    # wandb.init( project='dreamdiffusion',
-    #             group="stageB_dc-ldm",
-    #             anonymous="allow",
-    #             config=config,
-    #             reinit=True)
+    wandb.init( project='eeg_diffusion',
+                group="stageB_dc-ldm",
+                anonymous="allow",
+                config=config,
+                reinit=True)
     create_readme(config, output_path)
 
 def wandb_finish():
@@ -81,7 +81,7 @@ def generate_images(generative_model, eeg_latents_dataset_train, eeg_latents_dat
                 config.ddim_steps, config.HW, 10) # generate 10 instances
     grid_imgs = Image.fromarray(grid.astype(np.uint8))
     grid_imgs.save(os.path.join(config.output_path, 'samples_train.png'))
-    # wandb.log({'summary/samples_train': wandb.Image(grid_imgs)})
+    wandb.log({'summary/samples_train': wandb.Image(grid_imgs)})
 
     grid, samples = generative_model.generate(eeg_latents_dataset_test, config.num_samples, 
                 config.ddim_steps, config.HW)
@@ -93,13 +93,13 @@ def generate_images(generative_model, eeg_latents_dataset_train, eeg_latents_dat
             Image.fromarray(img).save(os.path.join(config.output_path, 
                             f'./test{sp_idx}-{copy_idx}.png'))
 
-    # wandb.log({f'summary/samples_test': wandb.Image(grid_imgs)})
+    wandb.log({f'summary/samples_test': wandb.Image(grid_imgs)})
 
     metric, metric_list = get_eval_metric(samples, avg=config.eval_avg)
     metric_dict = {f'summary/pair-wise_{k}':v for k, v in zip(metric_list[:-2], metric[:-2])}
     metric_dict[f'summary/{metric_list[-2]}'] = metric[-2]
     metric_dict[f'summary/{metric_list[-1]}'] = metric[-1]
-    # wandb.log(metric_dict)
+    wandb.log(metric_dict)
 
 def normalize(img):
     if img.shape[-1] == 3:
@@ -155,7 +155,7 @@ def main(config):
         x_train_eeg.append(loaded_array[1].T)
         x_train_raw_img.append(loaded_array[0])
         img = cv2.resize(loaded_array[0], (512, 512))
-        img = (cv2.cvtColor(img, cv2.COLOR_BGR2RGB) - 127.5) / 127.5
+        img =((img) - 127.5) / 127.5 
         img = np.transpose(img, (2, 0, 1))
         x_train_image.append(img)
         labels.append(loaded_array[2])
@@ -187,7 +187,7 @@ def main(config):
         x_val_eeg.append(loaded_array[1].T)
         x_val_raw_img.append(loaded_array[0])
         img = cv2.resize(loaded_array[0], (512, 512))
-        img = (cv2.cvtColor(img, cv2.COLOR_BGR2RGB) - 127.5) / 127.5
+        img =((img) - 127.5) / 127.5 
         img = np.transpose(img, (2, 0, 1))
         x_val_image.append(img)
         label_Val.append(loaded_array[2])

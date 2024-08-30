@@ -207,8 +207,8 @@ class Config_Generative_Model:
     def __init__(self):
         # project parameters
         self.seed = 2022
-        self.root_path = '../DreamDiffusion/'
-        self.output_path = '../DreamDiffusion/exps/'
+        self.root_path = './DreamDiffusion/'
+        self.output_path = './DreamDiffusion/exps/'
         self.eeg_signals_path = os.path.join(self.root_path, 'data/eeg_5_95_std.pth')
         self.splits_path = os.path.join(self.root_path, 'data/block_splits_by_image_single.pth')
         # self.splits_path = os.path.join(self.root_path, 'datasets/block_splits_by_image_all.pth')
@@ -231,7 +231,8 @@ class Config_Generative_Model:
         # finetune parameters
         # memeory 문제로 batch 5->1
         self.batch_size = 8
-        self.lr = 5.3e-5
+        # self.lr = 5.3e-5
+        self.lr = 1e-4
         self.num_epoch = 500
         
         self.precision = 32
@@ -256,8 +257,8 @@ class Config_Cls_Model:
     def __init__(self):
         # project parameters
         self.seed = 2022
-        self.root_path = '../DreamDiffusion/'
-        self.output_path = '../DreamDiffusion/exps/'
+        self.root_path = './DreamDiffusion/'
+        self.output_path = './DreamDiffusion/exps/'
 
         self.eeg_signals_path = os.path.join('/Data/summer24/DreamDiffusion/datasets/eeg_5_95_std.pth')
         # self.eeg_signals_path = os.path.join(self.root_path, 'datasets/eeg_14_70_std.pth')
